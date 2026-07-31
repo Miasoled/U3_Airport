@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using U3_Examen_Airport.Models.Application;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 namespace U3_Examen_Airport.Data;
 
