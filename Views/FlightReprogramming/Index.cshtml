@@ -1,0 +1,182 @@
+@using U3_Examen_Airport.Models
+
+@{
+    ViewData["Title"] = "Reprogramar vuelo";
+
+    Booking? booking = ViewBag.Booking as Booking;
+    Passenger? passenger = ViewBag.Passenger as Passenger;
+    Airport? originAirport = ViewBag.OriginAirport as Airport;
+    Airport? destinationAirport = ViewBag.DestinationAirport as Airport;
+}
+
+<div class="container py-4">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+
+            <div class="card shadow-sm">
+
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h4 mb-0">
+                        Cambio y reprogramación de vuelos
+                    </h1>
+                </div>
+
+                <div class="card-body">
+
+                    <p class="text-muted">
+                        Ingrese el número de reserva y el pasaporte
+                        correspondiente al pasajero.
+                    </p>
+
+                    <form asp-controller="FlightReprogramming"
+                          asp-action="Index"
+                          method="post">
+
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Número de reserva
+                                </label>
+
+                                <input type="number"
+                                       name="bookingId"
+                                       class="form-control"
+                                       min="1"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Número de pasaporte
+                                </label>
+
+                                <input type="text"
+                                       name="passportNumber"
+                                       class="form-control"
+                                       maxlength="9"
+                                       required />
+                            </div>
+
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit"
+                                    class="btn btn-primary">
+                                Buscar reserva
+                            </button>
+                        </div>
+
+                    </form>
+
+                    @if (ViewBag.ErrorMessage is not null)
+                    {
+                        <div class="alert alert-warning mt-4">
+                            @ViewBag.ErrorMessage
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+            @if (booking is not null
+                 && passenger is not null
+                 && booking.Flight is not null)
+            {
+                <div class="card shadow-sm mt-4">
+
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">
+                            Reserva encontrada
+                        </h2>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="row g-3">
+
+                            <div class="col-md-4">
+                                <strong>Reserva</strong>
+                                <div>@booking.BookingId</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Pasajero</strong>
+                                <div>
+                                    @passenger.Firstname
+                                    @passenger.Lastname
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Pasaporte</strong>
+                                <div>@passenger.Passportno</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Vuelo</strong>
+                                <div>@booking.Flight.Flightno</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Origen</strong>
+                                <div>
+                                    @(originAirport?.Name ?? "Sin información")
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Destino</strong>
+                                <div>
+                                    @(destinationAirport?.Name ?? "Sin información")
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Salida</strong>
+                            <div>
+                                @booking.Flight.Departure.ToString("dd/MM/yyyy HH:mm")
+                            </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <strong>Llegada</strong>
+                                <div>
+                            <div>
+                                @booking.Flight.Arrival.ToString("dd/MM/yyyy HH:mm")
+                            </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <strong>Asiento</strong>
+                                <div>@booking.Seat</div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <strong>Precio</strong>
+                                <div>
+                                    $@booking.Price.ToString("N2")
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <hr />
+
+                        <a asp-controller="FlightReprogramming"
+                           asp-action="SelectFlight"
+                           asp-route-bookingId="@booking.BookingId"
+                           class="btn btn-success">
+                            Buscar vuelos alternativos
+                        </a>
+
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>

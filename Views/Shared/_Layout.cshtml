@@ -99,6 +99,17 @@
                                 Pasajeros
                             </a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark"
+                                asp-area=""
+                                asp-controller="FlightReprogramming"
+                                asp-action="Index">
+                                    Reprogramar vuelo
+                                </a>
+                            </li>
+                        }
 
                     </ul>
 
