@@ -1,0 +1,65 @@
+# Compilación de .NET
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code y Rider
+.vscode/
+.idea/
+*.sln.iml
+
+# Configuración local con credenciales
+appsettings.json
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.*.local.json
+secrets.json
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos y carpetas de secretos
+Contraseñas/
+contraseñas/
+Passwords/
+passwords/
+Tokens/
+tokens/
+ClientSecret/
+clientsecret/
+ClientSecrets/
+clientsecrets/
+AccessToken/
+accesstoken/
+AccessTokens/
+accesstokens/
+
+# Archivos de credenciales, tokens y claves privadas
+*contraseña*
+*password*
+*token*
+*clientsecret*
+*client-secret*
+*access-token*
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.temp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
