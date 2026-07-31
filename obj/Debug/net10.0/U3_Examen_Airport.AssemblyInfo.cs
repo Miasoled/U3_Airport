@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("U3_Examen_Airport")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c4370a8953951de72355c7b6e009ba7fd3c8b8ae")]
 [assembly: System.Reflection.AssemblyProductAttribute("U3_Examen_Airport")]
 [assembly: System.Reflection.AssemblyTitleAttribute("U3_Examen_Airport")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
