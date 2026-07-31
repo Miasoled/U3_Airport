@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using U3_Examen_Airport.Data;
 using U3_Examen_Airport.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace U3_Examen_Airport.Controllers
 {
+    [Authorize(Roles = "Administrador")]
     public class PassengersController : Controller
     {
         private readonly AirportContext _context;

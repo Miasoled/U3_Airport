@@ -76,4 +76,9 @@ app.MapControllerRoute(
 // Rutas de las páginas Razor de Identity
 app.MapRazorPages();
 
+using (var scope = app.Services.CreateScope())
+{
+    await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+}
+
 app.Run();

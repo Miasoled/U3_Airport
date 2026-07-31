@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using U3_Examen_Airport.Data;
 using U3_Examen_Airport.Models.Application;
+using Microsoft.AspNetCore.Authorization;
 
 namespace U3_Examen_Airport.Controllers
 {
+    [Authorize]
     public class OrdersController : Controller
     {
         private readonly ApplicationDbContext _context;
