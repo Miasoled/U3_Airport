@@ -1,0 +1,65 @@
+@model IEnumerable<U3_Examen_Airport.Models.Application.FlightChangeHistory>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.PreviousStatus)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.NewStatus)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangeDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ChangedBy)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Observation)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FlightChangeRequest)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.PreviousStatus)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NewStatus)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangeDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ChangedBy)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Observation)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FlightChangeRequest.Status)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.FlightChangeHistoryId">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.FlightChangeHistoryId">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.FlightChangeHistoryId">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

@@ -1,0 +1,71 @@
+@model IEnumerable<U3_Examen_Airport.Models.Application.TransactionHistory>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.ExternalTransactionId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TransactionDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Status)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Amount)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Gateway)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ResponseData)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Payment)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.ExternalTransactionId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TransactionDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Amount)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Gateway)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ResponseData)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Payment.Currency)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.TransactionHistoryId">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.TransactionHistoryId">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.TransactionHistoryId">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

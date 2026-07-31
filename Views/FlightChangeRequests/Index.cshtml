@@ -1,0 +1,101 @@
+@model IEnumerable<U3_Examen_Airport.Models.Application.FlightChangeRequest>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.UserId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.BookingId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OriginalFlightId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.NewFlightId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.RequestDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OriginalPrice)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.NewPrice)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FareDifference)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PenaltyAmount)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TotalAmount)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Status)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Reason)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.UserId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.BookingId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.OriginalFlightId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NewFlightId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.RequestDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.OriginalPrice)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NewPrice)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FareDifference)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PenaltyAmount)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TotalAmount)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Reason)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.FlightChangeRequestId">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.FlightChangeRequestId">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.FlightChangeRequestId">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
