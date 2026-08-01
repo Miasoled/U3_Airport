@@ -197,9 +197,30 @@ namespace U3_Examen_Airport.Controllers
                 return BadRequest("La orden debe tener un total positivo expresado en USD.");
             }
 
-            var payPalOrder = await _payPalService.CreateOrderAsync(
-                order.TotalAmount,
-                cancellationToken);
+            PayPalOrderCreationResult payPalOrder;
+
+            try
+            {
+                payPalOrder = await _payPalService.CreateOrderAsync(
+                    order.TotalAmount,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                var failedPayment = await RegisterFailedPaymentAttemptAsync(
+                    order,
+                    exception.Message,
+                    cancellationToken);
+
+                ViewData["ErrorMessage"] =
+                    "No fue posible iniciar el pago en PayPal. La orden sigue pendiente y puede intentarlo nuevamente.";
+
+                return View("PayPalError", failedPayment);
+            }
 
             var duplicateExists = await _context.Payments
                 .AsNoTracking()
@@ -269,12 +290,46 @@ namespace U3_Examen_Airport.Controllers
                 return BadRequest("El pago ya no se encuentra pendiente.");
             }
 
-            var capture = await _payPalService.CaptureOrderAsync(token, cancellationToken);
+            PayPalCaptureResult capture;
+
+            try
+            {
+                capture = await _payPalService.CaptureOrderAsync(token, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                await SetTerminalPaymentStatusAsync(
+                    payment,
+                    "Fallido",
+                    $"FAIL-{token}",
+                    exception.Message,
+                    "Ocurrió un error técnico al capturar el pago en PayPal.",
+                    cancellationToken);
+
+                ViewData["ErrorMessage"] =
+                    "PayPal no pudo confirmar el pago por un error técnico. No se modificó la reserva.";
+
+                return View("PayPalError", payment);
+            }
 
             if (!string.Equals(capture.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase))
             {
-                return BadRequest(
-                    $"PayPal no completó la captura. Estado recibido: {capture.Status}.");
+                await SetTerminalPaymentStatusAsync(
+                    payment,
+                    "Rechazado",
+                    $"REJECT-{token}",
+                    capture.RawResponse,
+                    $"PayPal devolvió el estado {capture.Status}.",
+                    cancellationToken);
+
+                ViewData["ErrorMessage"] =
+                    $"PayPal no aprobó el pago. Estado recibido: {capture.Status}. No se modificó la reserva.";
+
+                return View("PayPalError", payment);
             }
 
             var transactionExists = await _context.TransactionHistories
@@ -404,6 +459,7 @@ namespace U3_Examen_Airport.Controllers
                 payment.ConfirmationDate = cancellationDate;
                 payment.ResponseMessage = "El usuario canceló el proceso en PayPal.";
                 payment.Order.Status = "Cancelado";
+                var previousStatus = payment.Order.FlightChangeRequest.Status;
                 payment.Order.FlightChangeRequest.Status = "Cancelado";
 
                 if (!cancellationExists)
@@ -419,6 +475,16 @@ namespace U3_Examen_Airport.Controllers
                         ResponseData = "El usuario regresó mediante la URL de cancelación de PayPal."
                     });
                 }
+
+                _context.FlightChangeHistories.Add(new FlightChangeHistory
+                {
+                    FlightChangeRequestId = payment.Order.FlightChangeRequestId,
+                    PreviousStatus = previousStatus,
+                    NewStatus = "Cancelado",
+                    ChangeDate = cancellationDate,
+                    ChangedBy = payment.UserId,
+                    Observation = "El usuario canceló el proceso de pago en PayPal."
+                });
 
                 await _context.SaveChangesAsync(cancellationToken);
             }
@@ -609,6 +675,110 @@ namespace U3_Examen_Airport.Controllers
 
             return !string.IsNullOrWhiteSpace(userId)
                 && (ownerUserId == userId || User.IsInRole("Administrador"));
+        }
+
+        private async Task<Payment> RegisterFailedPaymentAttemptAsync(
+            Order order,
+            string responseMessage,
+            CancellationToken cancellationToken)
+        {
+            var failureId = $"FAIL-{Guid.NewGuid():N}";
+            var failureDate = DateTime.UtcNow;
+            var payment = new Payment
+            {
+                OrderId = order.OrderId,
+                UserId = order.UserId,
+                Gateway = "PayPal",
+                ExternalTransactionId = failureId,
+                Amount = order.TotalAmount,
+                Currency = order.Currency,
+                Status = "Fallido",
+                CreationDate = failureDate,
+                ConfirmationDate = failureDate,
+                ResponseMessage = LimitLength(responseMessage, 1000)
+            };
+
+            _context.Payments.Add(payment);
+            _context.TransactionHistories.Add(new TransactionHistory
+            {
+                Payment = payment,
+                ExternalTransactionId = failureId,
+                TransactionDate = failureDate,
+                Status = "Fallido",
+                Amount = payment.Amount,
+                Gateway = "PayPal",
+                ResponseData = responseMessage
+            });
+
+            await _context.SaveChangesAsync(cancellationToken);
+            payment.Order = order;
+            return payment;
+        }
+
+        private async Task SetTerminalPaymentStatusAsync(
+            Payment payment,
+            string status,
+            string externalTransactionId,
+            string responseData,
+            string observation,
+            CancellationToken cancellationToken)
+        {
+            var order = payment.Order
+                ?? throw new InvalidOperationException("El pago no tiene una orden asociada.");
+            var changeRequest = order.FlightChangeRequest
+                ?? throw new InvalidOperationException("La orden no tiene una solicitud de cambio asociada.");
+            var previousStatus = changeRequest.Status;
+            var changeDate = DateTime.UtcNow;
+
+            await using var transaction = await _context.Database
+                .BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                payment.Status = status;
+                payment.ConfirmationDate = changeDate;
+                payment.ResponseMessage = LimitLength(responseData, 1000);
+                order.Status = status;
+                changeRequest.Status = status;
+
+                var transactionExists = await _context.TransactionHistories
+                    .AsNoTracking()
+                    .AnyAsync(
+                        item => item.ExternalTransactionId == externalTransactionId,
+                        cancellationToken);
+
+                if (!transactionExists)
+                {
+                    _context.TransactionHistories.Add(new TransactionHistory
+                    {
+                        PaymentId = payment.PaymentId,
+                        ExternalTransactionId = externalTransactionId,
+                        TransactionDate = changeDate,
+                        Status = status,
+                        Amount = payment.Amount,
+                        Gateway = "PayPal",
+                        ResponseData = responseData
+                    });
+                }
+
+                _context.FlightChangeHistories.Add(new FlightChangeHistory
+                {
+                    FlightChangeRequestId = changeRequest.FlightChangeRequestId,
+                    PreviousStatus = previousStatus,
+                    NewStatus = status,
+                    ChangeDate = changeDate,
+                    ChangedBy = payment.UserId,
+                    Observation = LimitLength(observation, 500)
+                });
+
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
         }
 
         private static string LimitLength(string value, int maximumLength) =>

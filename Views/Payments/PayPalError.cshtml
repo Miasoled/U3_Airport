@@ -1,0 +1,50 @@
+@model U3_Examen_Airport.Models.Application.Payment
+
+@{
+    ViewData["Title"] = "Pago no completado";
+    var errorMessage = ViewData["ErrorMessage"] as string
+        ?? "El pago no pudo completarse.";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h1 class="h4 mb-0">Pago no completado</h1>
+                </div>
+                <div class="card-body py-4">
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+
+                    <dl class="row">
+                        <dt class="col-sm-5">Número de orden</dt>
+                        <dd class="col-sm-7">@Model.OrderId</dd>
+
+                        <dt class="col-sm-5">Estado del intento</dt>
+                        <dd class="col-sm-7">@Model.Status</dd>
+
+                        <dt class="col-sm-5">Monto</dt>
+                        <dd class="col-sm-7">@Model.Currency @Model.Amount.ToString("N2")</dd>
+                    </dl>
+
+                    @if (Model.Order?.Status == "Pendiente")
+                    {
+                        <a asp-action="SelectGateway"
+                           asp-route-orderId="@Model.OrderId"
+                           class="btn btn-primary">
+                            Intentar nuevamente
+                        </a>
+                    }
+
+                    <a asp-controller="FlightReprogramming"
+                       asp-action="History"
+                       class="btn btn-outline-secondary">
+                        Ver mi historial
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
