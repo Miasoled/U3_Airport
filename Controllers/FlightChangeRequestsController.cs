@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace U3_Examen_Airport.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Administrador")]
     public class FlightChangeRequestsController : Controller
     {
         private readonly ApplicationDbContext _context;

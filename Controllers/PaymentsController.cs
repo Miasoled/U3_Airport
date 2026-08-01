@@ -454,6 +454,7 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Payments
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Index()
         {
             var applicationDbContext = _context.Payments.Include(p => p.Order);
@@ -461,6 +462,7 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Payments/Details/5
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -480,6 +482,7 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Payments/Create
+        [Authorize(Roles = "Administrador")]
         public IActionResult Create()
         {
             ViewData["OrderId"] = new SelectList(_context.Orders, "OrderId", "Currency");
@@ -491,6 +494,7 @@ namespace U3_Examen_Airport.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Create([Bind("PaymentId,OrderId,UserId,Gateway,ExternalTransactionId,Amount,Currency,Status,CreationDate,ConfirmationDate,ResponseMessage")] Payment payment)
         {
             if (ModelState.IsValid)
@@ -504,6 +508,7 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Payments/Edit/5
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -525,6 +530,7 @@ namespace U3_Examen_Airport.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Edit(int id, [Bind("PaymentId,OrderId,UserId,Gateway,ExternalTransactionId,Amount,Currency,Status,CreationDate,ConfirmationDate,ResponseMessage")] Payment payment)
         {
             if (id != payment.PaymentId)
@@ -557,6 +563,7 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Payments/Delete/5
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -578,6 +585,7 @@ namespace U3_Examen_Airport.Controllers
         // POST: Payments/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var payment = await _context.Payments.FindAsync(id);
