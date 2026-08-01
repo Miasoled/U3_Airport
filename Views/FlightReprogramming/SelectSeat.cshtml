@@ -1,10 +1,9 @@
-@model U3_Examen_Airport.Models.Flight
-@using U3_Examen_Airport.Models
+@model U3_Examen_Airport.ViewModels.SeatSelectionViewModel
 
 @{
     ViewData["Title"] = "Seleccionar nuevo asiento";
-    var booking = ViewBag.Booking as Booking;
-    var availableSeats = ViewBag.AvailableSeats as List<string> ?? new List<string>();
+    var booking = Model.CurrentBooking;
+    var availableSeats = Model.AvailableSeats;
 }
 
 <div class="container py-4">
@@ -22,11 +21,11 @@
 
                     <dl class="row">
                         <dt class="col-sm-5">Reserva</dt>
-                        <dd class="col-sm-7">@booking?.BookingId</dd>
+                        <dd class="col-sm-7">@Model.BookingId</dd>
                         <dt class="col-sm-5">Vuelo nuevo</dt>
-                        <dd class="col-sm-7">@Model.Flightno</dd>
+                        <dd class="col-sm-7">@Model.NewFlight.Flightno</dd>
                         <dt class="col-sm-5">Asiento actual</dt>
-                        <dd class="col-sm-7">@(booking?.Seat?.Trim() ?? "Sin asignar")</dd>
+                        <dd class="col-sm-7">@(booking.Seat?.Trim() ?? "Sin asignar")</dd>
                     </dl>
 
                     @if (availableSeats.Count == 0)
@@ -38,8 +37,8 @@
                     else
                     {
                         <form asp-action="Compare" method="get">
-                            <input type="hidden" name="bookingId" value="@booking?.BookingId" />
-                            <input type="hidden" name="newFlightId" value="@Model.FlightId" />
+                            <input type="hidden" name="bookingId" value="@Model.BookingId" />
+                            <input type="hidden" name="newFlightId" value="@Model.NewFlightId" />
 
                             <div class="mb-3">
                                 <label for="newSeat" class="form-label">Asiento disponible</label>
@@ -57,7 +56,7 @@
                     }
 
                     <a asp-action="SelectFlight"
-                       asp-route-bookingId="@booking?.BookingId"
+                       asp-route-bookingId="@Model.BookingId"
                        class="btn btn-outline-secondary mt-3">
                         Volver a vuelos alternativos
                     </a>

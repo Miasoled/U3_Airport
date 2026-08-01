@@ -1,36 +1,31 @@
-@using U3_Examen_Airport.Models
+@model U3_Examen_Airport.ViewModels.FlightComparisonViewModel
 
 @{
     ViewData["Title"] = "Comparar vuelos";
 
-    Booking? booking = ViewBag.Booking as Booking;
-    Flight? currentFlight = ViewBag.CurrentFlight as Flight;
-    Flight? newFlight = ViewBag.NewFlight as Flight;
-    Airport? originAirport = ViewBag.OriginAirport as Airport;
-    Airport? destinationAirport = ViewBag.DestinationAirport as Airport;
-    decimal newPrice = ViewBag.NewPrice is decimal valueNewPrice ? valueNewPrice : 0m;
-    decimal fareDifference = ViewBag.FareDifference is decimal valueFareDifference ? valueFareDifference : 0m;
-    decimal penaltyAmount = ViewBag.PenaltyAmount is decimal valuePenaltyAmount ? valuePenaltyAmount : 0m;
-    decimal totalAmount = ViewBag.TotalAmount is decimal valueTotalAmount ? valueTotalAmount : 0m;
-    string newSeat = ViewBag.NewSeat as string ?? string.Empty;
+    var booking = Model.Booking;
+    var currentFlight = Model.CurrentFlight;
+    var newFlight = Model.NewFlight;
+    var originAirport = Model.OriginAirport;
+    var destinationAirport = Model.DestinationAirport;
+    var newPrice = Model.NewPrice;
+    var fareDifference = Model.FareDifference;
+    var penaltyAmount = Model.PenaltyAmount;
+    var totalAmount = Model.TotalAmount;
+    var newSeat = Model.NewSeat;
 }
 
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">Comparación de vuelos</h1>
         <a asp-action="SelectFlight"
-           asp-route-bookingId="@booking?.BookingId"
+           asp-route-bookingId="@booking.BookingId"
            class="btn btn-outline-secondary">
             Volver a vuelos alternativos
         </a>
     </div>
 
-    @if (ViewBag.InformationMessage is not null)
-    {
-        <div class="alert alert-info">@ViewBag.InformationMessage</div>
-    }
-
-    @if (booking is not null && currentFlight is not null && newFlight is not null)
+    @if (currentFlight is not null && newFlight is not null)
     {
         <div class="row g-4">
             <div class="col-lg-6">

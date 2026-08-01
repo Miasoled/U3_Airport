@@ -49,7 +49,9 @@ public class ReservationsController : Controller
             return View(new List<Flight>());
         }
 
-        var startDate = date.Value.Date;
+        var startDate = DateTime.SpecifyKind(
+            date.Value.Date,
+            DateTimeKind.Utc);
         var endDate = startDate.AddDays(1);
 
         var flights = await _airportContext.Flights
@@ -61,6 +63,33 @@ public class ReservationsController : Controller
             .OrderBy(f => f.Departure)
             .Take(MaximumSearchResults)
             .ToListAsync(cancellationToken);
+
+        if (flights.Count == 0)
+        {
+            var routeDates = _airportContext.Flights
+                .AsNoTracking()
+                .Where(flight => flight.From == origin.Value
+                                 && flight.To == destination.Value)
+                .Select(flight => flight.Departure.Date)
+                .Distinct();
+
+            var suggestedDates = await routeDates
+                .Where(availableDate => availableDate >= startDate)
+                .OrderBy(availableDate => availableDate)
+                .Take(5)
+                .ToListAsync(cancellationToken);
+
+            if (suggestedDates.Count == 0)
+            {
+                suggestedDates = await routeDates
+                    .Where(availableDate => availableDate < startDate)
+                    .OrderByDescending(availableDate => availableDate)
+                    .Take(5)
+                    .ToListAsync(cancellationToken);
+            }
+
+            ViewBag.SuggestedDates = suggestedDates;
+        }
 
         ViewBag.EstimatedPrices = flights.ToDictionary(
             flight => flight.FlightId,
@@ -83,6 +112,8 @@ public class ReservationsController : Controller
         {
             return NotFound();
         }
+
+        await LoadFlightAirportDataAsync(flight, cancellationToken);
 
         var email = GetAuthenticatedEmail();
         if (email is null)
@@ -137,6 +168,8 @@ public class ReservationsController : Controller
         {
             return NotFound();
         }
+
+        await LoadFlightAirportDataAsync(flight, cancellationToken);
 
         var email = GetAuthenticatedEmail();
         if (email is null)
@@ -348,19 +381,83 @@ public class ReservationsController : Controller
 
     private async Task LoadFlightFilterOptionsAsync(CancellationToken cancellationToken)
     {
-        ViewBag.Origins = await _airportContext.Flights
+        var routes = await _airportContext.Flights
             .AsNoTracking()
-            .Select(flight => flight.From)
+            .Select(flight => new { flight.From, flight.To })
             .Distinct()
-            .OrderBy(id => id)
             .ToListAsync(cancellationToken);
 
-        ViewBag.Destinations = await _airportContext.Flights
+        var originIds = routes.Select(route => route.From).Distinct().ToList();
+        var destinationIds = routes.Select(route => route.To).Distinct().ToList();
+
+        var dateLimits = await _airportContext.Flights
             .AsNoTracking()
-            .Select(flight => flight.To)
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Minimum = group.Min(flight => flight.Departure),
+                Maximum = group.Max(flight => flight.Departure)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var airportIds = originIds
+            .Concat(destinationIds)
+            .Select(id => (int)id)
             .Distinct()
-            .OrderBy(id => id)
+            .ToArray();
+
+        var airports = await _airportContext.Airports
+            .AsNoTracking()
+            .Where(airport => airportIds.Contains(airport.AirportId))
+            .OrderBy(airport => airport.Name)
             .ToListAsync(cancellationToken);
+
+        var originSet = originIds.Select(id => (int)id).ToHashSet();
+        var destinationSet = destinationIds.Select(id => (int)id).ToHashSet();
+
+        ViewBag.Origins = airports
+            .Where(airport => originSet.Contains(airport.AirportId))
+            .ToList();
+        ViewBag.Destinations = airports
+            .Where(airport => destinationSet.Contains(airport.AirportId))
+            .ToList();
+        ViewBag.DestinationOrigins = routes
+            .GroupBy(route => (int)route.To)
+            .ToDictionary(
+                group => group.Key,
+                group => string.Join(",", group.Select(route => route.From).Distinct()));
+        ViewBag.AirportNames = airports.ToDictionary(
+            airport => airport.AirportId,
+            FormatAirportName);
+        ViewBag.MinimumFlightDate = dateLimits?.Minimum.ToString("yyyy-MM-dd");
+        ViewBag.MaximumFlightDate = dateLimits?.Maximum.ToString("yyyy-MM-dd");
+    }
+
+    private async Task LoadFlightAirportDataAsync(
+        Flight flight,
+        CancellationToken cancellationToken)
+    {
+        var airportIds = new[] { (int)flight.From, (int)flight.To };
+        var airports = await _airportContext.Airports
+            .AsNoTracking()
+            .Where(airport => airportIds.Contains(airport.AirportId))
+            .ToDictionaryAsync(airport => airport.AirportId, cancellationToken);
+
+        ViewBag.OriginAirportName = airports.TryGetValue(flight.From, out var origin)
+            ? FormatAirportName(origin)
+            : $"Aeropuerto #{flight.From}";
+        ViewBag.DestinationAirportName = airports.TryGetValue(flight.To, out var destination)
+            ? FormatAirportName(destination)
+            : $"Aeropuerto #{flight.To}";
+    }
+
+    private static string FormatAirportName(Airport airport)
+    {
+        var code = !string.IsNullOrWhiteSpace(airport.Iata)
+            ? airport.Iata.Trim()
+            : airport.Icao.Trim();
+
+        return $"{airport.Name.Trim()} ({code})";
     }
 
     private async Task<Passengerdetail?> FindPassengerDetailByEmailAsync(

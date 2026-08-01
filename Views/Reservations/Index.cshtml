@@ -4,6 +4,12 @@
     ViewData["Title"] = "Nueva Reserva";
     var prices = ViewBag.EstimatedPrices as IDictionary<int, decimal>
         ?? new Dictionary<int, decimal>();
+    var airportNames = ViewBag.AirportNames as IDictionary<int, string>
+        ?? new Dictionary<int, string>();
+    var destinationOrigins = ViewBag.DestinationOrigins as IDictionary<int, string>
+        ?? new Dictionary<int, string>();
+    var suggestedDates = ViewBag.SuggestedDates as IEnumerable<DateTime>
+        ?? Enumerable.Empty<DateTime>();
 }
 
 <div class="container py-4">
@@ -27,10 +33,10 @@
                     <label for="origin" class="form-label">Origen</label>
                     <select id="origin" name="origin" class="form-select" required>
                         <option value="">Seleccione...</option>
-                        @foreach (short airportId in ViewBag.Origins)
+                        @foreach (var airport in (IEnumerable<U3_Examen_Airport.Models.Airport>)ViewBag.Origins)
                         {
-                            <option value="@airportId" selected="@(ViewBag.Origin == airportId)">
-                                Aeropuerto #@airportId
+                            <option value="@airport.AirportId" selected="@(ViewBag.Origin == (short)airport.AirportId)">
+                                @airport.Name.Trim() (@(!string.IsNullOrWhiteSpace(airport.Iata) ? airport.Iata.Trim() : airport.Icao.Trim()))
                             </option>
                         }
                     </select>
@@ -40,10 +46,17 @@
                     <label for="destination" class="form-label">Destino</label>
                     <select id="destination" name="destination" class="form-select" required>
                         <option value="">Seleccione...</option>
-                        @foreach (short airportId in ViewBag.Destinations)
+                        @foreach (var airport in (IEnumerable<U3_Examen_Airport.Models.Airport>)ViewBag.Destinations)
                         {
-                            <option value="@airportId" selected="@(ViewBag.Destination == airportId)">
-                                Aeropuerto #@airportId
+                            var validOrigins = destinationOrigins.TryGetValue(
+                                airport.AirportId,
+                                out var originValues)
+                                ? originValues
+                                : string.Empty;
+                            <option value="@airport.AirportId"
+                                    data-origins="@validOrigins"
+                                    selected="@(ViewBag.Destination == (short)airport.AirportId)">
+                                @airport.Name.Trim() (@(!string.IsNullOrWhiteSpace(airport.Iata) ? airport.Iata.Trim() : airport.Icao.Trim()))
                             </option>
                         }
                     </select>
@@ -52,7 +65,13 @@
                 <div class="col-md-3">
                     <label for="date" class="form-label">Fecha</label>
                     <input id="date" name="date" type="date" class="form-control"
-                           value="@ViewBag.Date" required />
+                           value="@ViewBag.Date"
+                           min="@ViewBag.MinimumFlightDate"
+                           max="@ViewBag.MaximumFlightDate"
+                           required />
+                    <div class="form-text">
+                        Fechas del dataset: @ViewBag.MinimumFlightDate a @ViewBag.MaximumFlightDate
+                    </div>
                 </div>
 
                 <div class="col-md-1 d-grid">
@@ -91,8 +110,8 @@
                                 : 0m;
                             <tr>
                                 <td>@flight.Flightno</td>
-                                <td>Aeropuerto #@flight.From</td>
-                                <td>Aeropuerto #@flight.To</td>
+                                <td>@(airportNames.TryGetValue(flight.From, out var originName) ? originName : $"Aeropuerto #{flight.From}")</td>
+                                <td>@(airportNames.TryGetValue(flight.To, out var destinationName) ? destinationName : $"Aeropuerto #{flight.To}")</td>
                                 <td>@flight.Departure.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>@flight.Arrival.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>USD @estimatedPrice.ToString("N2")</td>
@@ -112,9 +131,52 @@
             @if (!Model.Any())
             {
                 <div class="card-body text-center text-muted">
-                    No se encontraron vuelos con los filtros seleccionados.
+                    <p class="mb-2">No se encontraron vuelos con los filtros seleccionados.</p>
+                    @if (suggestedDates.Any())
+                    {
+                        <p class="mb-2">Pruebe una de estas fechas disponibles para la misma ruta:</p>
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            @foreach (var suggestedDate in suggestedDates)
+                            {
+                                <a asp-action="Index"
+                                   asp-route-origin="@ViewBag.Origin"
+                                   asp-route-destination="@ViewBag.Destination"
+                                   asp-route-date="@suggestedDate.ToString("yyyy-MM-dd")"
+                                   class="btn btn-sm btn-outline-primary">
+                                    @suggestedDate.ToString("dd/MM/yyyy")
+                                </a>
+                            }
+                        </div>
+                    }
                 </div>
             }
         </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const origin = document.getElementById('origin');
+            const destination = document.getElementById('destination');
+            const destinationOptions = Array.from(destination.options).slice(1);
+
+            function updateDestinations() {
+                const selectedOrigin = origin.value;
+
+                destinationOptions.forEach(option => {
+                    const validOrigins = (option.dataset.origins || '').split(',');
+                    option.hidden = selectedOrigin !== '' && !validOrigins.includes(selectedOrigin);
+                    option.disabled = option.hidden;
+                });
+
+                if (destination.selectedOptions[0]?.disabled) {
+                    destination.value = '';
+                }
+            }
+
+            origin.addEventListener('change', updateDestinations);
+            updateDestinations();
+        })();
+    </script>
+}

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using U3_Examen_Airport.Data;
 using U3_Examen_Airport.Models;
 using U3_Examen_Airport.Models.Application;
+using U3_Examen_Airport.ViewModels;
 
 namespace U3_Examen_Airport.Controllers;
 
@@ -39,7 +40,7 @@ public class FlightReprogrammingController : Controller
             return Challenge();
         }
 
-        await PopulateUserBookingsAsync(
+        var model = await PopulateUserBookingsAsync(
             userEmail,
             searchText,
             dateFrom,
@@ -49,7 +50,7 @@ public class FlightReprogrammingController : Controller
             pageSize,
             cancellationToken);
 
-        return View();
+        return View(model);
     }
 
     [HttpPost]
@@ -61,9 +62,8 @@ public class FlightReprogrammingController : Controller
     {
         var userEmail = User.Identity?.Name;
 
-        if (!string.IsNullOrWhiteSpace(userEmail))
-        {
-            await PopulateUserBookingsAsync(
+        var model = !string.IsNullOrWhiteSpace(userEmail)
+            ? await PopulateUserBookingsAsync(
                 userEmail,
                 null,
                 null,
@@ -71,23 +71,26 @@ public class FlightReprogrammingController : Controller
                 "booking_desc",
                 1,
                 10,
-                cancellationToken);
-        }
+                cancellationToken)
+            : new BookingSearchViewModel();
+
+        model.BookingId = bookingId > 0 ? bookingId : null;
+        model.PassportNumber = passportNumber;
 
         if (bookingId <= 0)
         {
-            ViewBag.ErrorMessage =
+            model.ErrorMessage =
                 "Ingrese un número de reserva válido.";
 
-            return View();
+            return View(model);
         }
 
         if (string.IsNullOrWhiteSpace(passportNumber))
         {
-            ViewBag.ErrorMessage =
+            model.ErrorMessage =
                 "Ingrese el número de pasaporte.";
 
-            return View();
+            return View(model);
         }
 
         passportNumber = passportNumber.Trim();
@@ -101,10 +104,10 @@ public class FlightReprogrammingController : Controller
 
         if (booking is null)
         {
-            ViewBag.ErrorMessage =
+            model.ErrorMessage =
                 "No se encontró la reserva ingresada.";
 
-            return View();
+            return View(model);
         }
 
         var passenger = await _airportContext.Passengers
@@ -116,18 +119,18 @@ public class FlightReprogrammingController : Controller
 
         if (passenger is null)
         {
-            ViewBag.ErrorMessage =
+            model.ErrorMessage =
                 "El pasaporte no corresponde a la reserva ingresada.";
 
-            return View();
+            return View(model);
         }
 
         if (booking.Flight is null)
         {
-            ViewBag.ErrorMessage =
+            model.ErrorMessage =
                 "La reserva no tiene un vuelo asociado.";
 
-            return View();
+            return View(model);
         }
 
         var originAirport = await _airportContext.Airports
@@ -142,12 +145,12 @@ public class FlightReprogrammingController : Controller
                 a => a.AirportId == booking.Flight.To,
                 cancellationToken);
 
-        ViewBag.Booking = booking;
-        ViewBag.Passenger = passenger;
-        ViewBag.OriginAirport = originAirport;
-        ViewBag.DestinationAirport = destinationAirport;
+        model.SelectedBooking = booking;
+        model.SelectedPassenger = passenger;
+        model.OriginAirport = originAirport;
+        model.DestinationAirport = destinationAirport;
 
-        return View();
+        return View(model);
     }
 
     [HttpGet]
@@ -306,19 +309,17 @@ public class FlightReprogrammingController : Controller
             .Where(a => airportIds.Contains(a.AirportId))
             .ToDictionaryAsync(a => a.AirportId, cancellationToken);
 
-        ViewBag.Booking = booking;
-        ViewBag.OriginAirportName = airports.TryGetValue(
-            booking.Flight.From,
-            out var originAirport)
-            ? originAirport.Name
-            : "Sin información";
-        ViewBag.DestinationAirportName = airports.TryGetValue(
-            booking.Flight.To,
-            out var destinationAirport)
-            ? destinationAirport.Name
-            : "Sin información";
+        var model = new FlightSelectionViewModel
+        {
+            CurrentBooking = booking,
+            CurrentFlight = booking.Flight,
+            OriginAirport = airports.GetValueOrDefault(booking.Flight.From),
+            DestinationAirport = airports.GetValueOrDefault(booking.Flight.To),
+            AlternativeFlights = alternativeFlights,
+            AirportNames = airports.ToDictionary(item => item.Key, item => item.Value.Name)
+        };
 
-        return View(alternativeFlights);
+        return View(model);
     }
 
     [HttpGet]
@@ -352,12 +353,32 @@ public class FlightReprogrammingController : Controller
             return NotFound();
         }
 
-        ViewBag.Booking = booking;
-        ViewBag.AvailableSeats = await GetAvailableSeatsAsync(
-            newFlightId,
-            cancellationToken);
+        var airportIds = new[]
+        {
+            (int)booking.Flight.From,
+            (int)booking.Flight.To
+        };
 
-        return View(newFlight);
+        var airports = await _airportContext.Airports
+            .AsNoTracking()
+            .Where(airport => airportIds.Contains(airport.AirportId))
+            .ToDictionaryAsync(airport => airport.AirportId, cancellationToken);
+
+        var model = new SeatSelectionViewModel
+        {
+            BookingId = booking.BookingId,
+            NewFlightId = newFlight.FlightId,
+            CurrentBooking = booking,
+            CurrentFlight = booking.Flight,
+            NewFlight = newFlight,
+            OriginAirport = airports.GetValueOrDefault(booking.Flight.From),
+            DestinationAirport = airports.GetValueOrDefault(booking.Flight.To),
+            AvailableSeats = await GetAvailableSeatsAsync(
+                newFlightId,
+                cancellationToken)
+        };
+
+        return View(model);
     }
 
     [HttpGet]
@@ -389,12 +410,12 @@ public class FlightReprogrammingController : Controller
             return Forbid();
         }
 
-        var comparisonLoaded = await LoadComparisonAsync(
+        var model = await LoadComparisonAsync(
             booking,
             newFlightId,
             cancellationToken);
 
-        if (!comparisonLoaded)
+        if (model is null)
         {
             return NotFound();
         }
@@ -409,9 +430,9 @@ public class FlightReprogrammingController : Controller
                 new { bookingId, newFlightId });
         }
 
-        ViewBag.NewSeat = normalizedSeat;
+        model.NewSeat = normalizedSeat;
 
-        return View();
+        return View(model);
     }
 
     [HttpPost]
@@ -544,7 +565,7 @@ public class FlightReprogrammingController : Controller
             new { orderId = order.OrderId });
     }
 
-    private async Task PopulateUserBookingsAsync(
+    private async Task<BookingSearchViewModel> PopulateUserBookingsAsync(
         string userEmail,
         string? searchText,
         DateTime? dateFrom,
@@ -574,20 +595,18 @@ public class FlightReprogrammingController : Controller
 
         if (passengerDetail is null)
         {
-            ViewBag.UserBookings = new List<Booking>();
-            ViewBag.AirportNames = new Dictionary<int, string>();
-            ViewBag.LinkedPassengerId = null;
-            ViewBag.PassengerNotLinked = true;
-            SetBookingPaginationViewBag(
-                searchText,
-                dateFrom,
-                dateTo,
-                sortOrder,
-                page,
-                pageSize,
-                0,
-                1);
-            return;
+            return new BookingSearchViewModel
+            {
+                PassengerNotLinked = true,
+                SearchText = searchText,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                SortOrder = sortOrder,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalRecords = 0,
+                TotalPages = 1
+            };
         }
 
         var bookingsQuery = _airportContext.Bookings
@@ -654,39 +673,21 @@ public class FlightReprogrammingController : Controller
                     a => a.Name,
                     cancellationToken);
 
-        ViewBag.UserBookings = userBookings;
-        ViewBag.AirportNames = airportNames;
-        ViewBag.LinkedPassengerId = passengerDetail.PassengerId;
-        ViewBag.PassengerNotLinked = false;
-        SetBookingPaginationViewBag(
-            searchText,
-            dateFrom,
-            dateTo,
-            sortOrder,
-            page,
-            pageSize,
-            totalRecords,
-            totalPages);
-    }
-
-    private void SetBookingPaginationViewBag(
-        string? searchText,
-        DateTime? dateFrom,
-        DateTime? dateTo,
-        string sortOrder,
-        int page,
-        int pageSize,
-        int totalRecords,
-        int totalPages)
-    {
-        ViewBag.SearchText = searchText;
-        ViewBag.DateFrom = dateFrom;
-        ViewBag.DateTo = dateTo;
-        ViewBag.SortOrder = sortOrder;
-        ViewBag.CurrentPage = page;
-        ViewBag.PageSize = pageSize;
-        ViewBag.TotalRecords = totalRecords;
-        ViewBag.TotalPages = totalPages;
+        return new BookingSearchViewModel
+        {
+            UserBookings = userBookings,
+            AirportNames = airportNames,
+            LinkedPassengerId = passengerDetail.PassengerId,
+            PassengerNotLinked = false,
+            SearchText = searchText,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            SortOrder = sortOrder,
+            CurrentPage = page,
+            PageSize = pageSize,
+            TotalRecords = totalRecords,
+            TotalPages = totalPages
+        };
     }
 
     private async Task<bool> CanAccessBookingAsync(
@@ -770,19 +771,19 @@ public class FlightReprogrammingController : Controller
             && row is >= 1 and <= 50;
     }
 
-    private async Task<bool> LoadComparisonAsync(
+    private async Task<FlightComparisonViewModel?> LoadComparisonAsync(
         Booking booking,
         int newFlightId,
         CancellationToken cancellationToken)
     {
         if (newFlightId <= 0 || booking.Flight is null)
         {
-            return false;
+            return null;
         }
 
         if (booking.FlightId == newFlightId)
         {
-            return false;
+            return null;
         }
 
         var newFlight = await _airportContext.Flights
@@ -795,7 +796,7 @@ public class FlightReprogrammingController : Controller
 
         if (newFlight is null)
         {
-            return false;
+            return null;
         }
 
         var airportIds = new[]
@@ -812,7 +813,7 @@ public class FlightReprogrammingController : Controller
         if (!airports.TryGetValue(booking.Flight.From, out var originAirport)
             || !airports.TryGetValue(booking.Flight.To, out var destinationAirport))
         {
-            return false;
+            return null;
         }
 
         var newPrice = booking.Price + 25m;
@@ -820,16 +821,18 @@ public class FlightReprogrammingController : Controller
         const decimal penaltyAmount = 20m;
         var totalAmount = fareDifference + penaltyAmount;
 
-        ViewBag.Booking = booking;
-        ViewBag.CurrentFlight = booking.Flight;
-        ViewBag.NewFlight = newFlight;
-        ViewBag.OriginAirport = originAirport;
-        ViewBag.DestinationAirport = destinationAirport;
-        ViewBag.NewPrice = newPrice;
-        ViewBag.FareDifference = fareDifference;
-        ViewBag.PenaltyAmount = penaltyAmount;
-        ViewBag.TotalAmount = totalAmount;
-
-        return true;
+        return new FlightComparisonViewModel
+        {
+            Booking = booking,
+            CurrentFlight = booking.Flight,
+            NewFlight = newFlight,
+            OriginAirport = originAirport,
+            DestinationAirport = destinationAirport,
+            OriginalPrice = booking.Price,
+            NewPrice = newPrice,
+            FareDifference = fareDifference,
+            PenaltyAmount = penaltyAmount,
+            TotalAmount = totalAmount
+        };
     }
 }

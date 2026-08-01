@@ -1,24 +1,23 @@
-@using U3_Examen_Airport.Models
+@model U3_Examen_Airport.ViewModels.BookingSearchViewModel
 
 @{
     ViewData["Title"] = "Reprogramar vuelo";
 
-    Booking? booking = ViewBag.Booking as Booking;
-    Passenger? passenger = ViewBag.Passenger as Passenger;
-    Airport? originAirport = ViewBag.OriginAirport as Airport;
-    Airport? destinationAirport = ViewBag.DestinationAirport as Airport;
-    List<Booking> userBookings = ViewBag.UserBookings as List<Booking> ?? new List<Booking>();
-    Dictionary<int, string> airportNames =
-        ViewBag.AirportNames as Dictionary<int, string> ?? new Dictionary<int, string>();
-    bool passengerNotLinked = ViewBag.PassengerNotLinked is true;
-    string searchText = ViewBag.SearchText as string ?? string.Empty;
-    DateTime? dateFrom = ViewBag.DateFrom as DateTime?;
-    DateTime? dateTo = ViewBag.DateTo as DateTime?;
-    string sortOrder = ViewBag.SortOrder as string ?? "booking_desc";
-    int currentPage = ViewBag.CurrentPage is int valueCurrentPage ? valueCurrentPage : 1;
-    int pageSize = ViewBag.PageSize is int valuePageSize ? valuePageSize : 10;
-    int totalRecords = ViewBag.TotalRecords is int valueTotalRecords ? valueTotalRecords : 0;
-    int totalPages = ViewBag.TotalPages is int valueTotalPages ? valueTotalPages : 1;
+    var booking = Model.SelectedBooking;
+    var passenger = Model.SelectedPassenger;
+    var originAirport = Model.OriginAirport;
+    var destinationAirport = Model.DestinationAirport;
+    var userBookings = Model.UserBookings;
+    var airportNames = Model.AirportNames;
+    var passengerNotLinked = Model.PassengerNotLinked;
+    var searchText = Model.SearchText ?? string.Empty;
+    var dateFrom = Model.DateFrom;
+    var dateTo = Model.DateTo;
+    var sortOrder = Model.SortOrder;
+    var currentPage = Model.CurrentPage;
+    var pageSize = Model.PageSize;
+    var totalRecords = Model.TotalRecords;
+    var totalPages = Model.TotalPages;
 }
 
 <div class="container py-4">
@@ -227,7 +226,8 @@
                                     Número de reserva
                                 </label>
 
-                                <input type="number"
+                                <input asp-for="BookingId"
+                                       type="number"
                                        name="bookingId"
                                        class="form-control"
                                        min="1"
@@ -239,7 +239,8 @@
                                     Número de pasaporte
                                 </label>
 
-                                <input type="text"
+                                <input asp-for="PassportNumber"
+                                       type="text"
                                        name="passportNumber"
                                        class="form-control"
                                        maxlength="9"
@@ -257,10 +258,10 @@
 
                     </form>
 
-                    @if (ViewBag.ErrorMessage is not null)
+                    @if (Model.ErrorMessage is not null)
                     {
                         <div class="alert alert-warning mt-4">
-                            @ViewBag.ErrorMessage
+                            @Model.ErrorMessage
                         </div>
                     }
 

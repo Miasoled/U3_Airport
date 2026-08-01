@@ -20,7 +20,11 @@
                         <dt class="col-sm-4">Número de vuelo</dt>
                         <dd class="col-sm-8">@Model.Flightno</dd>
                         <dt class="col-sm-4">Ruta</dt>
-                        <dd class="col-sm-8">Aeropuerto #@Model.From → Aeropuerto #@Model.To</dd>
+                        <dd class="col-sm-8">
+                            <strong>@ViewBag.OriginAirportName</strong>
+                            <span class="mx-2" aria-hidden="true">→</span>
+                            <strong>@ViewBag.DestinationAirportName</strong>
+                        </dd>
                         <dt class="col-sm-4">Salida</dt>
                         <dd class="col-sm-8">@Model.Departure.ToString("dd/MM/yyyy HH:mm")</dd>
                         <dt class="col-sm-4">Llegada</dt>

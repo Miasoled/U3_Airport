@@ -1,12 +1,11 @@
-@model IEnumerable<U3_Examen_Airport.Models.Flight>
-@using U3_Examen_Airport.Models
+@model U3_Examen_Airport.ViewModels.FlightSelectionViewModel
 
 @{
     ViewData["Title"] = "Seleccionar nuevo vuelo";
 
-    Booking? booking = ViewBag.Booking as Booking;
-    string originAirportName = ViewBag.OriginAirportName as string ?? "Sin información";
-    string destinationAirportName = ViewBag.DestinationAirportName as string ?? "Sin información";
+    var booking = Model.CurrentBooking;
+    var originAirportName = Model.OriginAirport?.Name ?? "Sin información";
+    var destinationAirportName = Model.DestinationAirport?.Name ?? "Sin información";
 }
 
 <div class="container py-4">
@@ -21,7 +20,7 @@
 
         <div class="card-body">
 
-            @if (booking?.Flight is not null)
+            @if (Model.CurrentFlight is not null)
             {
                 <div class="card border-info mb-4">
                     <div class="card-header bg-info-subtle">
@@ -30,18 +29,18 @@
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-4"><strong>Reserva</strong><div>@booking.BookingId</div></div>
-                            <div class="col-md-4"><strong>Vuelo</strong><div>@booking.Flight.Flightno</div></div>
+                            <div class="col-md-4"><strong>Vuelo</strong><div>@Model.CurrentFlight.Flightno</div></div>
                             <div class="col-md-4"><strong>Precio actual</strong><div>$@booking.Price.ToString("N2")</div></div>
                             <div class="col-md-6"><strong>Origen</strong><div>@originAirportName</div></div>
                             <div class="col-md-6"><strong>Destino</strong><div>@destinationAirportName</div></div>
-                            <div class="col-md-6"><strong>Salida</strong><div>@(booking.Flight.Departure.ToString("dd/MM/yyyy HH:mm"))</div></div>
-                            <div class="col-md-6"><strong>Llegada</strong><div>@(booking.Flight.Arrival.ToString("dd/MM/yyyy HH:mm"))</div></div>
+                            <div class="col-md-6"><strong>Salida</strong><div>@(Model.CurrentFlight.Departure.ToString("dd/MM/yyyy HH:mm"))</div></div>
+                            <div class="col-md-6"><strong>Llegada</strong><div>@(Model.CurrentFlight.Arrival.ToString("dd/MM/yyyy HH:mm"))</div></div>
                         </div>
                     </div>
                 </div>
             }
 
-            @if (!Model.Any())
+            @if (!Model.AlternativeFlights.Any())
             {
                 <div class="alert alert-warning">
                     No se encontraron vuelos alternativos
@@ -67,7 +66,7 @@
 
                         <tbody>
 
-                            @foreach (var flight in Model)
+                            @foreach (var flight in Model.AlternativeFlights)
                             {
                                 <tr>
                                     <td>@flight.Flightno</td>
@@ -87,7 +86,7 @@
                                     <td>
                                         <a asp-controller="FlightReprogramming"
                                            asp-action="SelectSeat"
-                                           asp-route-bookingId="@booking?.BookingId"
+                                           asp-route-bookingId="@booking.BookingId"
                                            asp-route-newFlightId="@flight.FlightId"
                                            class="btn btn-success btn-sm">
                                             Seleccionar
