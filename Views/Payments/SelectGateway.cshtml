@@ -55,9 +55,9 @@
                         </div>
                     }
 
-                    <h2 class="h5 mb-3">Seleccione una pasarela</h2>
-                    <div class="row g-3">
-                        <div class="col-md-6">
+                    <h2 class="h5 mb-3">Pasarela de pago</h2>
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
                             <div class="card h-100 border-primary">
                                 <div class="card-body d-flex flex-column">
                                     <h3 class="h5">PayPal Sandbox</h3>
@@ -68,23 +68,6 @@
                                         <input type="hidden" name="gateway" value="PayPal" />
                                         <button type="submit" class="btn btn-primary w-100">
                                             Continuar con PayPal
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="card h-100 border-success">
-                                <div class="card-body d-flex flex-column">
-                                    <h3 class="h5">PayPhone pruebas</h3>
-                                    <p class="text-muted flex-grow-1">Pago de prueba mediante el ambiente de PayPhone.</p>
-                                    <form asp-action="StartPayment" method="post">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="orderId" value="@Model.OrderId" />
-                                        <input type="hidden" name="gateway" value="PayPhone" />
-                                        <button type="submit" class="btn btn-success w-100">
-                                            Continuar con PayPhone
                                         </button>
                                     </form>
                                 </div>
