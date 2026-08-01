@@ -22,14 +22,15 @@
 
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg airport-navbar mb-3">
+            <div class="container">
 
                 <a class="navbar-brand"
                    asp-area=""
                    asp-controller="Home"
                    asp-action="Index">
-                    U3 Examen Airport
+                    <span class="brand-mark" aria-hidden="true">✈</span>
+                    AirportApp
                 </a>
 
                 <button class="navbar-toggler"
@@ -81,18 +82,18 @@
                                     Mi historial
                                 </a>
                             </li>
-                        }
-
-                        @if (User.IsInRole("Administrador"))
-                        {
                             <li class="nav-item">
                                 <a class="nav-link text-dark"
                                    asp-area=""
                                    asp-controller="Administration"
                                    asp-action="Index">
-                                    Panel administrativo
+                                    Zona administrativa
                                 </a>
                             </li>
+                        }
+
+                        @if (User.IsInRole("Administrador"))
+                        {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle text-dark"
                                    href="#"
@@ -121,7 +122,7 @@
         </nav>
     </header>
 
-    <div class="container">
+    <div class="container app-shell">
         <main role="main" class="pb-3">
             @if (TempData["SuccessMessage"] is string successMessage)
             {
@@ -135,9 +136,12 @@
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+    <footer class="airport-footer">
         <div class="container">
-            &copy; 2026 - U3_Examen_Airport
+            <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                <span>&copy; 2026 AirportApp</span>
+                <span>Reservas y reprogramación de vuelos</span>
+            </div>
         </div>
     </footer>
 

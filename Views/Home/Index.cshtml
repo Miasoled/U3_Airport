@@ -1,8 +1,63 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero-section mt-2 mb-4">
+    <div class="hero-eyebrow mb-3">Gestión aeroportuaria</div>
+    <h1 class="mb-3">Tus vuelos, en un solo lugar.</h1>
+    <p class="mb-4">
+        Crea una reserva, consulta tus viajes y reprograma un vuelo de forma clara,
+        segura y rápida.
+    </p>
+
+    <div class="d-flex flex-wrap gap-2">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Reservations" asp-action="Index" class="btn btn-dark btn-lg">
+                Nueva reserva
+            </a>
+            <a asp-controller="FlightReprogramming" asp-action="Index" class="btn btn-outline-secondary btn-lg">
+                Ver mis reservas
+            </a>
+        }
+        else
+        {
+            <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-dark btn-lg">
+                Crear una cuenta
+            </a>
+            <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-secondary btn-lg">
+                Iniciar sesión
+            </a>
+        }
+    </div>
+</section>
+
+<section class="row g-4 pb-4" aria-label="Funciones principales">
+    <div class="col-md-4">
+        <article class="card feature-card">
+            <div class="feature-icon">01</div>
+            <h2 class="h5">Reserva tu vuelo</h2>
+            <p class="text-muted mb-0">
+                Busca rutas disponibles y crea una reserva inicial asociada a tu cuenta.
+            </p>
+        </article>
+    </div>
+    <div class="col-md-4">
+        <article class="card feature-card">
+            <div class="feature-icon">02</div>
+            <h2 class="h5">Cambia tu itinerario</h2>
+            <p class="text-muted mb-0">
+                Compara vuelos alternativos, selecciona un asiento libre y revisa el valor del cambio.
+            </p>
+        </article>
+    </div>
+    <div class="col-md-4">
+        <article class="card feature-card">
+            <div class="feature-icon">03</div>
+            <h2 class="h5">Consulta tu historial</h2>
+            <p class="text-muted mb-0">
+                Revisa órdenes, pagos y reprogramaciones desde un historial personal y seguro.
+            </p>
+        </article>
+    </div>
+</section>

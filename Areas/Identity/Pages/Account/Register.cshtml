@@ -1,63 +1,95 @@
-﻿@page
+@page
 @model RegisterModel
+
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Crear cuenta";
 }
 
-<h1>@ViewData["Title"]</h1>
+<div class="auth-page">
+    <div class="auth-panel">
+        <aside class="auth-aside auth-aside-register">
+            <a asp-area="" asp-controller="Home" asp-action="Index" class="auth-brand">
+                <span class="brand-mark" aria-hidden="true">✈</span>
+                AirportApp
+            </a>
 
-<div class="row">
-    <div class="col-md-4">
-        <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-            <h2>Create a new account.</h2>
-            <hr />
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label asp-for="Input.Email">Email</label>
-                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            <div class="auth-aside-content">
+                <span class="auth-kicker">Comienza tu viaje</span>
+                <h1>Tu próxima reserva empieza aquí.</h1>
+                <p>
+                    Regístrate como Cliente para crear reservas, seleccionar vuelos alternativos
+                    y consultar tu historial personal.
+                </p>
             </div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label asp-for="Input.Password">Password</label>
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
+
+            <div class="auth-benefits">
+                <span>Reservas asociadas a tu correo</span>
+                <span>Pagos seguros con PayPal Sandbox</span>
+                <span>Historial individual de operaciones</span>
             </div>
-            <div class="form-floating mb-3">
-                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label asp-for="Input.ConfirmPassword">Confirm Password</label>
-                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
-            </div>
-            <button id="registerSubmit" type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </form>
-    </div>
-    <div class="col-md-6 col-md-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            @{
-                if ((Model.ExternalLogins?.Count ?? 0) == 0)
-                {
-                    <div>
-                        <p>
-                            There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">article
-                            about setting up this ASP.NET application to support logging in via external services</a>.
-                        </p>
+        </aside>
+
+        <section class="auth-form-section">
+            <div class="auth-form-wrap">
+                <div class="mb-4">
+                    <span class="auth-kicker">Registro de cliente</span>
+                    <h2 class="h2 mb-2">Crear una cuenta</h2>
+                    <p class="text-muted mb-0">Completa los datos para acceder al sistema.</p>
+                </div>
+
+                <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Email" class="form-label">Correo electrónico</label>
+                        <input asp-for="Input.Email" class="form-control auth-input"
+                               autocomplete="username" aria-required="true"
+                               placeholder="nombre@correo.com" />
+                        <span asp-validation-for="Input.Email" class="text-danger small"></span>
                     </div>
-                }
-                else
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Password" class="form-label">Contraseña</label>
+                        <input asp-for="Input.Password" class="form-control auth-input"
+                               autocomplete="new-password" aria-required="true"
+                               placeholder="Mínimo 6 caracteres" />
+                        <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                        <div class="form-text">Debe incluir mayúscula, minúscula, número y símbolo.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Input.ConfirmPassword" class="form-label">Confirmar contraseña</label>
+                        <input asp-for="Input.ConfirmPassword" class="form-control auth-input"
+                               autocomplete="new-password" aria-required="true"
+                               placeholder="Repite tu contraseña" />
+                        <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+                    </div>
+
+                    <button id="registerSubmit" type="submit" class="w-100 btn btn-dark btn-lg">
+                        Crear cuenta
+                    </button>
+
+                    <p class="auth-switch mb-0 mt-4">
+                        ¿Ya tienes una cuenta?
+                        <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Iniciar sesión</a>
+                    </p>
+                </form>
+
+                @if ((Model.ExternalLogins?.Count ?? 0) > 0)
                 {
-                    <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
-                        <div>
-                            <p>
-                                @foreach (var provider in Model.ExternalLogins!)
-                                {
-                                    <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
-                                }
-                            </p>
-                        </div>
+                    <div class="auth-divider"><span>o regístrate con</span></div>
+                    <form id="external-account" asp-page="./ExternalLogin"
+                          asp-route-returnUrl="@Model.ReturnUrl" method="post" class="d-grid gap-2">
+                        @foreach (var provider in Model.ExternalLogins!)
+                        {
+                            <button type="submit" class="btn btn-outline-secondary"
+                                    name="provider" value="@provider.Name">
+                                @provider.DisplayName
+                            </button>
+                        }
                     </form>
                 }
-            }
+            </div>
         </section>
     </div>
 </div>
