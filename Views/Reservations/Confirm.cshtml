@@ -1,0 +1,108 @@
+@model U3_Examen_Airport.Models.Flight
+
+@{
+    ViewData["Title"] = "Confirmar reserva";
+    var passenger = ViewBag.ExistingPassenger as U3_Examen_Airport.Models.Passenger;
+    var requiresPassengerData = ViewBag.RequiresPassengerData == true;
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h4 mb-0">Confirmar reserva</h1>
+                </div>
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <dl class="row">
+                        <dt class="col-sm-4">Número de vuelo</dt>
+                        <dd class="col-sm-8">@Model.Flightno</dd>
+                        <dt class="col-sm-4">Ruta</dt>
+                        <dd class="col-sm-8">Aeropuerto #@Model.From → Aeropuerto #@Model.To</dd>
+                        <dt class="col-sm-4">Salida</dt>
+                        <dd class="col-sm-8">@Model.Departure.ToString("dd/MM/yyyy HH:mm")</dd>
+                        <dt class="col-sm-4">Llegada</dt>
+                        <dd class="col-sm-8">@Model.Arrival.ToString("dd/MM/yyyy HH:mm")</dd>
+                        <dt class="col-sm-4">Precio</dt>
+                        <dd class="col-sm-8 fw-bold">USD @(((decimal)ViewBag.EstimatedPrice).ToString("N2"))</dd>
+                    </dl>
+
+                    <div class="alert alert-info">
+                        La reserva se asociará al correo <strong>@ViewBag.UserEmail</strong>.
+                    </div>
+
+                    @if (passenger is not null)
+                    {
+                        <div class="alert alert-success">
+                            Se utilizará el pasajero existente:
+                            <strong>@passenger.Firstname @passenger.Lastname</strong>
+                            (pasaporte @passenger.Passportno).
+                        </div>
+                    }
+
+                    <form asp-action="Confirm" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="flightId" value="@Model.FlightId" />
+
+                        @if (requiresPassengerData)
+                        {
+                            <h2 class="h5 mt-4">Datos del pasajero</h2>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="firstName" class="form-label">Nombre</label>
+                                    <input id="firstName" name="firstName" class="form-control"
+                                           maxlength="100" value="@ViewBag.FirstName" required />
+                                    <span class="text-danger">@Html.ValidationMessage("firstName")</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="lastName" class="form-label">Apellido</label>
+                                    <input id="lastName" name="lastName" class="form-control"
+                                           maxlength="100" value="@ViewBag.LastName" required />
+                                    <span class="text-danger">@Html.ValidationMessage("lastName")</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="passportNumber" class="form-label">Número de pasaporte</label>
+                                    <input id="passportNumber" name="passportNumber" class="form-control"
+                                           maxlength="9" value="@ViewBag.PassportNumber" required />
+                                    <span class="text-danger">@Html.ValidationMessage("passportNumber")</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="birthDate" class="form-label">Fecha de nacimiento</label>
+                                    <input id="birthDate" name="birthDate" type="date" class="form-control"
+                                           value="@ViewBag.BirthDate" required />
+                                    <span class="text-danger">@Html.ValidationMessage("birthDate")</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="phone" class="form-label">Teléfono (opcional)</label>
+                                    <input id="phone" name="phone" class="form-control"
+                                           maxlength="30" value="@ViewBag.Phone" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="city" class="form-label">Ciudad (opcional)</label>
+                                    <input id="city" name="city" class="form-control"
+                                           maxlength="100" value="@ViewBag.City" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="country" class="form-label">País (opcional)</label>
+                                    <input id="country" name="country" class="form-control"
+                                           maxlength="100" value="@ViewBag.Country" />
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-success">Confirmar reserva</button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">Volver</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

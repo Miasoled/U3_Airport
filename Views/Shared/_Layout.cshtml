@@ -59,6 +59,14 @@
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark"
+                                   asp-area=""
+                                   asp-controller="Reservations"
+                                   asp-action="Index">
+                                    Nueva Reserva
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark"
                                 asp-area=""
                                 asp-controller="FlightReprogramming"
                                 asp-action="Index">
@@ -115,6 +123,14 @@
 
     <div class="container">
         <main role="main" class="pb-3">
+            @if (TempData["SuccessMessage"] is string successMessage)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @successMessage
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            }
+
             @RenderBody()
         </main>
     </div>

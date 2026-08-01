@@ -1,0 +1,120 @@
+@model IEnumerable<U3_Examen_Airport.Models.Flight>
+
+@{
+    ViewData["Title"] = "Nueva Reserva";
+    var prices = ViewBag.EstimatedPrices as IDictionary<int, decimal>
+        ?? new Dictionary<int, decimal>();
+}
+
+<div class="container py-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h1 class="h4 mb-0">Nueva Reserva</h1>
+        </div>
+        <div class="card-body">
+            @if (TempData["ErrorMessage"] is string errorMessage)
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            @if (ViewBag.ErrorMessage is string searchError)
+            {
+                <div class="alert alert-warning">@searchError</div>
+            }
+
+            <form method="get" asp-action="Index" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="origin" class="form-label">Origen</label>
+                    <select id="origin" name="origin" class="form-select" required>
+                        <option value="">Seleccione...</option>
+                        @foreach (short airportId in ViewBag.Origins)
+                        {
+                            <option value="@airportId" selected="@(ViewBag.Origin == airportId)">
+                                Aeropuerto #@airportId
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="destination" class="form-label">Destino</label>
+                    <select id="destination" name="destination" class="form-select" required>
+                        <option value="">Seleccione...</option>
+                        @foreach (short airportId in ViewBag.Destinations)
+                        {
+                            <option value="@airportId" selected="@(ViewBag.Destination == airportId)">
+                                Aeropuerto #@airportId
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="date" class="form-label">Fecha</label>
+                    <input id="date" name="date" type="date" class="form-control"
+                           value="@ViewBag.Date" required />
+                </div>
+
+                <div class="col-md-1 d-grid">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (ViewBag.HasSearched == true && ViewBag.ErrorMessage is null)
+    {
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Vuelos disponibles</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Número de vuelo</th>
+                            <th>Origen</th>
+                            <th>Destino</th>
+                            <th>Salida</th>
+                            <th>Llegada</th>
+                            <th>Precio estimado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var flight in Model)
+                        {
+                            var estimatedPrice = prices.TryGetValue(
+                                flight.FlightId,
+                                out var price)
+                                ? price
+                                : 0m;
+                            <tr>
+                                <td>@flight.Flightno</td>
+                                <td>Aeropuerto #@flight.From</td>
+                                <td>Aeropuerto #@flight.To</td>
+                                <td>@flight.Departure.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@flight.Arrival.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>USD @estimatedPrice.ToString("N2")</td>
+                                <td>
+                                    <a asp-action="Confirm"
+                                       asp-route-flightId="@flight.FlightId"
+                                       class="btn btn-sm btn-success">
+                                        Reservar
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="card-body text-center text-muted">
+                    No se encontraron vuelos con los filtros seleccionados.
+                </div>
+            }
+        </div>
+    }
+</div>
