@@ -1,260 +1,101 @@
-# U3 Examen Airport
+# U3 Examen Airport — Tipo 4
 
-Aplicación web para administrar información de un aeropuerto. El proyecto utiliza **ASP.NET Core MVC**, **Entity Framework Core** y **PostgreSQL**.
+Aplicación ASP.NET Core MVC .NET 10 para consultar reservas y gestionar el cambio o reprogramación de vuelos. Usa PostgreSQL, Entity Framework Core, Identity y PayPal Sandbox mediante Orders API v2.
 
-## Estado actual
+## Funcionalidad implementada
 
-Hasta el momento se ha implementado:
+- Registro e inicio de sesión con roles `Cliente` y `Administrador`.
+- Consulta segura de reservas asociadas al correo del usuario.
+- Búsqueda manual por reserva y pasaporte.
+- Búsqueda de vuelos alternativos con el mismo origen y destino.
+- Comparación entre el vuelo actual y el nuevo.
+- Cálculo en servidor de diferencia de tarifa, penalización y total.
+- Creación transaccional de solicitud, orden y detalle de orden.
+- Pago con PayPal Sandbox, captura y comprobante.
+- Estados `Pendiente`, `Aprobado`, `Cancelado`, `Rechazado` y `Fallido`.
+- Historial de cambios y transacciones.
+- Historial paginado del cliente.
+- Panel administrativo con filtros, métricas y operaciones recientes.
+- CRUD administrativos protegidos por rol.
 
-- La estructura base de una aplicación ASP.NET Core MVC.
-- La conexión a PostgreSQL mediante Entity Framework Core y el proveedor Npgsql.
-- El contexto `AirportContext`, generado a partir de una base de datos existente.
-- El mapeo de las entidades, propiedades, claves, índices y relaciones del dominio aeroportuario.
-- Un CRUD completo de aerolíneas:
-  - Listar aerolíneas.
-  - Consultar detalles.
-  - Crear registros.
-  - Editar registros.
-  - Eliminar registros con una vista de confirmación.
-- Validación antifalsificación (`ValidateAntiForgeryToken`) en las operaciones que modifican datos.
-- Manejo básico de registros inexistentes y conflictos de concurrencia.
-- Vistas Razor con Bootstrap, jQuery y validación del lado del cliente.
+## Arquitectura de datos
 
-## Modelo de datos
+La aplicación utiliza dos contextos sobre la misma base PostgreSQL:
 
-El contexto incluye las siguientes entidades:
+- `AirportContext`: tablas originales de Airport, generado con Database First.
+- `ApplicationDbContext`: Identity y tablas propias de reprogramación, órdenes, pagos e historiales.
 
-| Entidad | Información representada |
-| --- | --- |
-| `Airline` | Aerolíneas |
-| `Airplane` | Aviones |
-| `AirplaneType` | Tipos de avión |
-| `Airport` | Aeropuertos |
-| `AirportGeo` | Ubicación geográfica de aeropuertos |
-| `AirportReachable` | Alcance o conexiones entre aeropuertos |
-| `Booking` | Reservas |
-| `Employee` | Empleados |
-| `Flight` | Vuelos |
-| `FlightLog` | Historial de cambios de vuelos |
-| `Flightschedule` | Horarios recurrentes de vuelos |
-| `Passenger` | Pasajeros |
-| `Passengerdetail` | Información adicional de pasajeros |
-| `Weatherdatum` | Registros meteorológicos |
-
-> Aunque todas estas entidades están mapeadas, actualmente solo `Airline` dispone de controlador y vistas CRUD.
-
-## Tecnologías utilizadas
-
-- .NET 10
-- ASP.NET Core MVC
-- Entity Framework Core 10
-- Npgsql para Entity Framework Core
-- PostgreSQL
-- Razor Views
-- Bootstrap
-- jQuery y jQuery Validation
-
-El proyecto también contiene referencias a los paquetes de Entity Framework Core para SQL Server y ASP.NET Core Identity, aunque la configuración activa usa PostgreSQL y todavía no se ha implementado autenticación.
+La confirmación de PayPal se guarda primero en `ApplicationDbContext` y después se actualiza `bookings.flight_id` con `AirportContext`. No se simula una transacción distribuida entre ambos contextos.
 
 ## Requisitos
 
-- [.NET SDK 10](https://dotnet.microsoft.com/download)
-- PostgreSQL
-- Una base de datos con el esquema aeroportuario que corresponde a las entidades de `Models/` y al mapeo de `AirportContext`
+- .NET SDK 10
+- PostgreSQL con la base Airport proporcionada para el examen
+- Cuenta de desarrollador y credenciales de PayPal Sandbox
 
-## Configuración
+## Configuración segura
 
-1. Clona el repositorio y entra en la carpeta del proyecto.
+El archivo `appsettings.Example.json` documenta todas las claves necesarias, pero contiene únicamente valores de ejemplo. Las credenciales reales no deben incluirse en Git.
 
-2. Restaura las dependencias:
+Desde la carpeta del proyecto, configura User Secrets:
 
-   ```bash
-   dotnet restore
-   ```
+```powershell
+dotnet user-secrets set "ConnectionStrings:AirportConnection" "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA"
+dotnet user-secrets set "PayPal:ClientId" "TU_CLIENT_ID_SANDBOX"
+dotnet user-secrets set "PayPal:ClientSecret" "TU_CLIENT_SECRET_SANDBOX"
+dotnet user-secrets set "PayPal:BaseUrl" "https://api-m.sandbox.paypal.com"
+dotnet user-secrets set "PayPal:ReturnUrl" "https://localhost:7055/Payments/PayPalSuccess"
+dotnet user-secrets set "PayPal:CancelUrl" "https://localhost:7055/Payments/PayPalCancel"
+```
 
-3. Configura la cadena `AirportConnection`. Para desarrollo se recomienda no guardar credenciales reales en el repositorio y usar Secret Manager:
+Puedes comprobar las claves registradas —sin compartir su salida— con:
 
-   ```bash
-   dotnet user-secrets init
-   dotnet user-secrets set "ConnectionStrings:AirportConnection" "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA"
-   ```
+```powershell
+dotnet user-secrets list
+```
 
-   La aplicación espera una cadena con este formato:
-
-   ```text
-   Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA
-   ```
-
-> Este repositorio no contiene migraciones ni un script de creación de la base de datos. El esquema debe existir antes de ejecutar la aplicación.
+En el panel de PayPal Sandbox, las URL de retorno deben coincidir con las configuradas. Si usas el perfil HTTP, cambia el host y puerto según `Properties/launchSettings.json`.
 
 ## Ejecución
 
-Inicia el proyecto con:
-
-```bash
-dotnet run
-```
-
-Con la configuración de desarrollo actual, la aplicación estará disponible en:
-
-- `http://localhost:5240`
-- `https://localhost:7055`
-
-El módulo implementado de aerolíneas se encuentra en:
-
-```text
-/Airlines
-```
-
-## Comandos utilizados para construir el proyecto
-
-Los siguientes comandos resumen cómo reproducir desde cero lo realizado hasta ahora. Deben ejecutarse desde PowerShell o una terminal compatible.
-
-### 1. Crear el proyecto MVC
-
-```bash
-dotnet new mvc -n U3_Examen_Airport -f net10.0
-cd U3_Examen_Airport
-```
-
-### 2. Instalar los paquetes
-
-```bash
-dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL --version 10.0.1
-dotnet add package Microsoft.EntityFrameworkCore.Design --version 10.0.2
-dotnet add package Microsoft.EntityFrameworkCore.Tools --version 10.0.2
-dotnet add package Microsoft.VisualStudio.Web.CodeGeneration.Design --version 10.0.2
-dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version 10.0.2
-dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore --version 10.0.2
-dotnet add package Microsoft.AspNetCore.Identity.UI --version 10.0.2
-```
-
-PostgreSQL es el proveedor utilizado actualmente. Los paquetes de SQL Server e Identity están referenciados en el proyecto, pero todavía no forman parte de la funcionalidad activa.
-
-### 3. Instalar las herramientas de scaffolding
-
-```bash
-dotnet tool install --global dotnet-ef
-dotnet tool install --global dotnet-aspnet-codegenerator
-```
-
-Si ya estaban instaladas, pueden actualizarse con:
-
-```bash
-dotnet tool update --global dotnet-ef
-dotnet tool update --global dotnet-aspnet-codegenerator
-```
-
-### 4. Generar el contexto y los modelos desde PostgreSQL
-
-El proyecto sigue un enfoque **Database First**. Con la base de datos aeroportuaria ya creada, el contexto y las entidades se pueden generar mediante:
-
-```bash
-dotnet ef dbcontext scaffold "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA" Npgsql.EntityFrameworkCore.PostgreSQL --context AirportContext --context-dir Data --output-dir Models --no-onconfiguring
-```
-
-Si se necesita volver a generar archivos existentes después de cambiar el esquema, se puede añadir `--force`. Antes de hacerlo se deben respaldar las personalizaciones manuales:
-
-```bash
-dotnet ef dbcontext scaffold "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA" Npgsql.EntityFrameworkCore.PostgreSQL --context AirportContext --context-dir Data --output-dir Models --no-onconfiguring --force
-```
-
-### 5. Registrar PostgreSQL en la aplicación
-
-La configuración aplicada en `Program.cs` equivale a registrar el contexto así:
-
-```csharp
-var connectionString =
-    builder.Configuration.GetConnectionString("AirportConnection");
-
-builder.Services.AddDbContext<AirportContext>(options =>
-    options.UseNpgsql(connectionString));
-```
-
-La cadena de conexión puede guardarse para desarrollo con:
-
-```bash
-dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:AirportConnection" "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA"
-```
-
-### 6. Generar el CRUD de aerolíneas
-
-El controlador y las vistas Razor de `Airline` se pueden generar con el scaffolder de ASP.NET Core:
-
-```bash
-dotnet aspnet-codegenerator controller -name AirlinesController -m Airline -dc AirportContext --relativeFolderPath Controllers --useDefaultLayout --referenceScriptLibraries
-```
-
-Este comando genera `Controllers/AirlinesController.cs` y las vistas dentro de `Views/Airlines/`.
-
-### 7. Restaurar, compilar y ejecutar
-
-```bash
+```powershell
 dotnet restore
 dotnet build
 dotnet run
 ```
 
-Para ejecutar con recarga automática durante el desarrollo:
+Perfiles locales predeterminados:
 
-```bash
-dotnet watch run
-```
+- `https://localhost:7055`
+- `http://localhost:5240`
 
-### 8. Comandos de comprobación útiles
+## Flujo principal
 
-```bash
-dotnet --version
-dotnet ef --version
-dotnet list package
-dotnet build --no-restore
-```
+1. El cliente inicia sesión y abre **Reprogramar vuelo**.
+2. Selecciona una reserva y un boleto.
+3. Busca un vuelo alternativo del mismo origen y destino.
+4. Compara importes y confirma la solicitud.
+5. Selecciona PayPal y completa el pago en Sandbox.
+6. La aplicación captura el pago, registra los historiales y actualiza el vuelo de la reserva.
+7. El cliente consulta el comprobante o su historial.
 
-## Estructura del proyecto
+## Roles
 
-```text
-U3_Examen_Airport/
-├── Controllers/
-│   ├── AirlinesController.cs
-│   └── HomeController.cs
-├── Data/
-│   └── AirportContext.cs
-├── Models/
-│   └── Entidades del dominio aeroportuario
-├── Views/
-│   ├── Airlines/
-│   ├── Home/
-│   └── Shared/
-├── wwwroot/
-│   └── Archivos CSS, JavaScript y librerías del cliente
-├── Program.cs
-├── appsettings.json
-└── U3_Examen_Airport.csproj
-```
+- `Cliente`: reservas propias, reprogramación, pago, comprobante e historial personal.
+- `Administrador`: panel general, acceso a operaciones y CRUD de catálogos.
 
-## Flujo del CRUD de aerolíneas
+Los roles se crean al iniciar la aplicación mediante `IdentitySeeder`.
 
-El controlador `AirlinesController` utiliza `AirportContext` para acceder a PostgreSQL de forma asíncrona. Sus rutas principales son:
+## Seguridad
 
-| Método | Ruta | Acción |
-| --- | --- | --- |
-| GET | `/Airlines` | Lista las aerolíneas |
-| GET | `/Airlines/Details/{id}` | Muestra una aerolínea |
-| GET/POST | `/Airlines/Create` | Crea una aerolínea |
-| GET/POST | `/Airlines/Edit/{id}` | Edita una aerolínea |
-| GET/POST | `/Airlines/Delete/{id}` | Confirma y elimina una aerolínea |
+- Acciones privadas protegidas con `[Authorize]`.
+- CRUD sensibles restringidos a `Administrador`.
+- Validación de propiedad de órdenes, pagos y reservas.
+- Formularios POST protegidos con antiforgery token.
+- Totales recalculados o leídos desde la orden del servidor.
+- El secreto de PayPal se usa únicamente en el servicio del servidor.
+- `appsettings.json`, archivos locales y secretos están excluidos mediante `.gitignore`.
 
-## Próximos pasos sugeridos
+## Nota sobre la base Airport
 
-- Agregar al menú de navegación un acceso al módulo de aerolíneas.
-- Implementar controladores y vistas para las demás entidades.
-- Incorporar validaciones de negocio y mensajes de error amigables.
-- Mover todas las credenciales a variables de entorno o Secret Manager.
-- Añadir autenticación y autorización si el sistema tendrá usuarios.
-- Incluir pruebas automatizadas.
-- Agregar migraciones o instrucciones para construir y cargar la base de datos.
-
-## Nota sobre los datos
-
-El mapeo de las tablas contiene referencias a **Flughafen DB**, obra de Stefan Pröll, Eva Zangerle y Wolfgang Gassler, publicada bajo licencia **CC BY 4.0**.
+`AirportContext` conserva el esquema original autorizado para el examen. No debe reemplazarse por migraciones de las tablas Airport. El proyecto mantiene por separado las tablas propias requeridas para el flujo Tipo 4.
