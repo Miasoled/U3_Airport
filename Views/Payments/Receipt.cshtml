@@ -1,0 +1,61 @@
+@model U3_Examen_Airport.Models.Application.Payment
+
+@{
+    ViewData["Title"] = "Comprobante de pago";
+    var order = Model.Order!;
+    var changeRequest = order.FlightChangeRequest!;
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            @if (TempData["WarningMessage"] is string warningMessage)
+            {
+                <div class="alert alert-warning">@warningMessage</div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h1 class="h4 mb-0">Comprobante de pago</h1>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        El pago fue procesado con estado <strong>@Model.Status</strong>.
+                    </div>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Número de pago</dt>
+                        <dd class="col-sm-7">@Model.PaymentId</dd>
+
+                        <dt class="col-sm-5">Número de orden</dt>
+                        <dd class="col-sm-7">@order.OrderId</dd>
+
+                        <dt class="col-sm-5">Orden PayPal</dt>
+                        <dd class="col-sm-7 text-break">@Model.ExternalTransactionId</dd>
+
+                        <dt class="col-sm-5">Pasarela</dt>
+                        <dd class="col-sm-7">@Model.Gateway</dd>
+
+                        <dt class="col-sm-5">Monto</dt>
+                        <dd class="col-sm-7">@Model.Currency @Model.Amount.ToString("N2")</dd>
+
+                        <dt class="col-sm-5">Fecha de creación</dt>
+                        <dd class="col-sm-7">@(Model.CreationDate.ToString("dd/MM/yyyy HH:mm"))</dd>
+
+                        <dt class="col-sm-5">Fecha de confirmación</dt>
+                        <dd class="col-sm-7">@(Model.ConfirmationDate?.ToString("dd/MM/yyyy HH:mm") ?? "Pendiente")</dd>
+
+                        <dt class="col-sm-5">Reserva</dt>
+                        <dd class="col-sm-7">@changeRequest.BookingId</dd>
+
+                        <dt class="col-sm-5">Vuelo original</dt>
+                        <dd class="col-sm-7">@changeRequest.OriginalFlightId</dd>
+
+                        <dt class="col-sm-5">Nuevo vuelo</dt>
+                        <dd class="col-sm-7">@changeRequest.NewFlightId</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

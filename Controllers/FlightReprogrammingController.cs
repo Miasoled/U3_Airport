@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using U3_Examen_Airport.Data;
 using U3_Examen_Airport.Models;
+using U3_Examen_Airport.Models.Application;
 
 namespace U3_Examen_Airport.Controllers;
 
@@ -21,8 +23,17 @@ public class FlightReprogrammingController : Controller
     }
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var userEmail = User.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(userEmail))
+        {
+            return Challenge();
+        }
+
+        await PopulateUserBookingsAsync(userEmail, cancellationToken);
+
         return View();
     }
 
@@ -33,6 +44,13 @@ public class FlightReprogrammingController : Controller
         string passportNumber,
         CancellationToken cancellationToken)
     {
+        var userEmail = User.Identity?.Name;
+
+        if (!string.IsNullOrWhiteSpace(userEmail))
+        {
+            await PopulateUserBookingsAsync(userEmail, cancellationToken);
+        }
+
         if (bookingId <= 0)
         {
             ViewBag.ErrorMessage =
@@ -114,6 +132,11 @@ public class FlightReprogrammingController : Controller
         int bookingId,
         CancellationToken cancellationToken)
     {
+        if (bookingId <= 0)
+        {
+            return BadRequest();
+        }
+
         var booking = await _airportContext.Bookings
             .AsNoTracking()
             .Include(b => b.Flight)
@@ -126,19 +149,348 @@ public class FlightReprogrammingController : Controller
             return NotFound();
         }
 
+        if (!await CanAccessBookingAsync(booking, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var alternativeFlights = await _airportContext.Flights
             .AsNoTracking()
             .Where(f =>
                 f.FlightId != booking.FlightId
                 && f.From == booking.Flight.From
-                && f.To == booking.Flight.To
-                && f.Departure > booking.Flight.Departure)
+                && f.To == booking.Flight.To)
             .OrderBy(f => f.Departure)
             .Take(20)
             .ToListAsync(cancellationToken);
 
+        var airportIds = new[]
+        {
+            (int)booking.Flight.From,
+            (int)booking.Flight.To
+        };
+
+        var airports = await _airportContext.Airports
+            .AsNoTracking()
+            .Where(a => airportIds.Contains(a.AirportId))
+            .ToDictionaryAsync(a => a.AirportId, cancellationToken);
+
         ViewBag.Booking = booking;
+        ViewBag.OriginAirportName = airports.TryGetValue(
+            booking.Flight.From,
+            out var originAirport)
+            ? originAirport.Name
+            : "Sin información";
+        ViewBag.DestinationAirportName = airports.TryGetValue(
+            booking.Flight.To,
+            out var destinationAirport)
+            ? destinationAirport.Name
+            : "Sin información";
 
         return View(alternativeFlights);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Compare(
+        int bookingId,
+        int newFlightId,
+        CancellationToken cancellationToken)
+    {
+        if (bookingId <= 0 || newFlightId <= 0)
+        {
+            return NotFound();
+        }
+
+        var booking = await _airportContext.Bookings
+            .AsNoTracking()
+            .Include(b => b.Flight)
+            .FirstOrDefaultAsync(
+                b => b.BookingId == bookingId,
+                cancellationToken);
+
+        if (booking?.Flight is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAccessBookingAsync(booking, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var comparisonLoaded = await LoadComparisonAsync(
+            booking,
+            newFlightId,
+            cancellationToken);
+
+        if (!comparisonLoaded)
+        {
+            return NotFound();
+        }
+
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize]
+    public async Task<IActionResult> ConfirmReprogramming(
+        int bookingId,
+        int newFlightId,
+        CancellationToken cancellationToken)
+    {
+        if (bookingId <= 0 || newFlightId <= 0)
+        {
+            return NotFound();
+        }
+
+        var booking = await _airportContext.Bookings
+            .AsNoTracking()
+            .Include(b => b.Flight)
+            .FirstOrDefaultAsync(
+                b => b.BookingId == bookingId,
+                cancellationToken);
+
+        if (booking?.Flight is null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAccessBookingAsync(booking, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var newFlight = await _airportContext.Flights
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                f => f.FlightId == newFlightId,
+                cancellationToken);
+
+        if (newFlight is null
+            || newFlight.FlightId == booking.FlightId
+            || newFlight.From != booking.Flight.From
+            || newFlight.To != booking.Flight.To)
+        {
+            return NotFound();
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Challenge();
+        }
+
+        var originalPrice = booking.Price;
+        var newPrice = originalPrice + 25m;
+        var fareDifference = Math.Max(0m, newPrice - originalPrice);
+        const decimal penaltyAmount = 20m;
+        var totalAmount = fareDifference + penaltyAmount;
+
+        var flightChangeRequest = new FlightChangeRequest
+        {
+            UserId = userId,
+            BookingId = booking.BookingId,
+            OriginalFlightId = booking.FlightId,
+            NewFlightId = newFlight.FlightId,
+            RequestDate = DateTime.UtcNow,
+            OriginalPrice = originalPrice,
+            NewPrice = newPrice,
+            FareDifference = fareDifference,
+            PenaltyAmount = penaltyAmount,
+            TotalAmount = totalAmount,
+            Status = "Pendiente"
+        };
+
+        var order = new Order
+        {
+            UserId = userId,
+            FlightChangeRequest = flightChangeRequest,
+            CreationDate = DateTime.UtcNow,
+            Status = "Pendiente",
+            Subtotal = fareDifference,
+            PenaltyAmount = penaltyAmount,
+            TotalAmount = totalAmount,
+            Currency = "USD"
+        };
+
+        var orderDetail = new OrderDetail
+        {
+            Order = order,
+            Description =
+                $"Reprogramación del vuelo {booking.Flight.Flightno.Trim()} al vuelo {newFlight.Flightno.Trim()}",
+            Quantity = 1,
+            UnitPrice = totalAmount,
+            Subtotal = totalAmount
+        };
+
+        await using var transaction = await _applicationContext.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            _applicationContext.FlightChangeRequests.Add(flightChangeRequest);
+            _applicationContext.Orders.Add(order);
+            _applicationContext.OrderDetails.Add(orderDetail);
+
+            await _applicationContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+
+        return RedirectToAction(
+            "SelectGateway",
+            "Payments",
+            new { orderId = order.OrderId });
+    }
+
+    private async Task PopulateUserBookingsAsync(
+        string userEmail,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail = userEmail.Trim();
+        var passengerDetail = await _airportContext.Passengerdetails
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.Emailaddress != null
+                     && p.Emailaddress.Trim() == normalizedEmail,
+                cancellationToken);
+
+        if (passengerDetail is null)
+        {
+            ViewBag.UserBookings = new List<Booking>();
+            ViewBag.AirportNames = new Dictionary<int, string>();
+            ViewBag.LinkedPassengerId = null;
+            ViewBag.PassengerNotLinked = true;
+            return;
+        }
+
+        var userBookings = await _airportContext.Bookings
+            .AsNoTracking()
+            .Include(b => b.Flight)
+            .Where(b => b.PassengerId == passengerDetail.PassengerId)
+            .OrderByDescending(b => b.BookingId)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        var airportIds = userBookings
+            .Where(b => b.Flight is not null)
+            .SelectMany(b => new[]
+            {
+                (int)b.Flight.From,
+                (int)b.Flight.To
+            })
+            .Distinct()
+            .ToArray();
+
+        var airportNames = airportIds.Length == 0
+            ? new Dictionary<int, string>()
+            : await _airportContext.Airports
+                .AsNoTracking()
+                .Where(a => airportIds.Contains(a.AirportId))
+                .ToDictionaryAsync(
+                    a => a.AirportId,
+                    a => a.Name,
+                    cancellationToken);
+
+        ViewBag.UserBookings = userBookings;
+        ViewBag.AirportNames = airportNames;
+        ViewBag.LinkedPassengerId = passengerDetail.PassengerId;
+        ViewBag.PassengerNotLinked = false;
+    }
+
+    private async Task<bool> CanAccessBookingAsync(
+        Booking booking,
+        CancellationToken cancellationToken)
+    {
+        if (User.IsInRole("Administrador"))
+        {
+            return true;
+        }
+
+        var userEmail = User.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(userEmail))
+        {
+            return false;
+        }
+
+        var normalizedEmail = userEmail.Trim();
+
+        return await _airportContext.Passengerdetails
+            .AsNoTracking()
+            .AnyAsync(
+                p => p.PassengerId == booking.PassengerId
+                     && p.Emailaddress != null
+                     && p.Emailaddress.Trim() == normalizedEmail,
+                cancellationToken);
+    }
+
+    private async Task<bool> LoadComparisonAsync(
+        Booking booking,
+        int newFlightId,
+        CancellationToken cancellationToken)
+    {
+        if (newFlightId <= 0 || booking.Flight is null)
+        {
+            return false;
+        }
+
+        if (booking.FlightId == newFlightId)
+        {
+            return false;
+        }
+
+        var newFlight = await _airportContext.Flights
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                f => f.FlightId == newFlightId
+                     && f.From == booking.Flight.From
+                     && f.To == booking.Flight.To,
+                cancellationToken);
+
+        if (newFlight is null)
+        {
+            return false;
+        }
+
+        var airportIds = new[]
+        {
+            (int)booking.Flight.From,
+            (int)booking.Flight.To
+        };
+
+        var airports = await _airportContext.Airports
+            .AsNoTracking()
+            .Where(a => airportIds.Contains(a.AirportId))
+            .ToDictionaryAsync(a => a.AirportId, cancellationToken);
+
+        if (!airports.TryGetValue(booking.Flight.From, out var originAirport)
+            || !airports.TryGetValue(booking.Flight.To, out var destinationAirport))
+        {
+            return false;
+        }
+
+        var newPrice = booking.Price + 25m;
+        var fareDifference = Math.Max(0m, newPrice - booking.Price);
+        const decimal penaltyAmount = 20m;
+        var totalAmount = fareDifference + penaltyAmount;
+
+        ViewBag.Booking = booking;
+        ViewBag.CurrentFlight = booking.Flight;
+        ViewBag.NewFlight = newFlight;
+        ViewBag.OriginAirport = originAirport;
+        ViewBag.DestinationAirport = destinationAirport;
+        ViewBag.NewPrice = newPrice;
+        ViewBag.FareDifference = fareDifference;
+        ViewBag.PenaltyAmount = penaltyAmount;
+        ViewBag.TotalAmount = totalAmount;
+
+        return true;
     }
 }

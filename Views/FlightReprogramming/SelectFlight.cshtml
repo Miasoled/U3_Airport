@@ -5,6 +5,8 @@
     ViewData["Title"] = "Seleccionar nuevo vuelo";
 
     Booking? booking = ViewBag.Booking as Booking;
+    string originAirportName = ViewBag.OriginAirportName as string ?? "Sin información";
+    string destinationAirportName = ViewBag.DestinationAirportName as string ?? "Sin información";
 }
 
 <div class="container py-4">
@@ -21,22 +23,21 @@
 
             @if (booking?.Flight is not null)
             {
-                <div class="alert alert-info">
-
-                    <strong>Vuelo actual:</strong>
-                    @booking.Flight.Flightno
-
-                    <br />
-
-                    <strong>Salida:</strong>
-                    @booking.Flight.Departure
-                        .ToString("dd/MM/yyyy HH:mm")
-
-                    <br />
-
-                    <strong>Precio actual:</strong>
-                    $@booking.Price.ToString("N2")
-
+                <div class="card border-info mb-4">
+                    <div class="card-header bg-info-subtle">
+                        <h2 class="h5 mb-0">Vuelo actual</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4"><strong>Reserva</strong><div>@booking.BookingId</div></div>
+                            <div class="col-md-4"><strong>Vuelo</strong><div>@booking.Flight.Flightno</div></div>
+                            <div class="col-md-4"><strong>Precio actual</strong><div>$@booking.Price.ToString("N2")</div></div>
+                            <div class="col-md-6"><strong>Origen</strong><div>@originAirportName</div></div>
+                            <div class="col-md-6"><strong>Destino</strong><div>@destinationAirportName</div></div>
+                            <div class="col-md-6"><strong>Salida</strong><div>@(booking.Flight.Departure.ToString("dd/MM/yyyy HH:mm"))</div></div>
+                            <div class="col-md-6"><strong>Llegada</strong><div>@(booking.Flight.Arrival.ToString("dd/MM/yyyy HH:mm"))</div></div>
+                        </div>
+                    </div>
                 </div>
             }
 
@@ -72,18 +73,16 @@
                                     <td>@flight.Flightno</td>
 
                                     <td>
-                                        @flight.Departure
-                                            .ToString("dd/MM/yyyy HH:mm")
+                                        @(flight.Departure.ToString("dd/MM/yyyy HH:mm"))
                                     </td>
 
                                     <td>
-                                        @flight.Arrival
-                                            .ToString("dd/MM/yyyy HH:mm")
+                                        @(flight.Arrival.ToString("dd/MM/yyyy HH:mm"))
                                     </td>
 
-                                    <td>@flight.From</td>
+                                    <td>@originAirportName</td>
 
-                                    <td>@flight.To</td>
+                                    <td>@destinationAirportName</td>
 
                                     <td>
                                         <a asp-controller="FlightReprogramming"

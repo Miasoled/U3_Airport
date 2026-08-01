@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Pago pendiente";
+    int orderId = TempData["OrderId"] is int valueOrderId ? valueOrderId : 0;
+    string gateway = TempData["Gateway"] as string ?? "Sin seleccionar";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm text-center">
+                <div class="card-header bg-warning">
+                    <h1 class="h4 mb-0">Integración de pago pendiente</h1>
+                </div>
+                <div class="card-body py-4">
+                    <p class="mb-2"><strong>Número de orden:</strong> @orderId</p>
+                    <p class="mb-4"><strong>Pasarela seleccionada:</strong> @gateway</p>
+
+                    <div class="alert alert-info">
+                        La integración real con @gateway se implementará en el siguiente paso.
+                        No se creó ningún pago ni se modificó la orden.
+                    </div>
+
+                    <a asp-action="SelectGateway"
+                       asp-route-orderId="@orderId"
+                       class="btn btn-primary">
+                        Volver a seleccionar pasarela
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

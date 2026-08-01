@@ -1,0 +1,98 @@
+@model U3_Examen_Airport.Models.Application.Order
+
+@{
+    ViewData["Title"] = "Seleccionar pasarela";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h4 mb-0">Orden de reprogramación #@Model.OrderId</h1>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <strong>Fecha de creación</strong>
+                            <div>@(Model.CreationDate.ToString("dd/MM/yyyy HH:mm"))</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Estado</strong>
+                            <div><span class="badge bg-warning text-dark">@Model.Status</span></div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Moneda</strong>
+                            <div>@Model.Currency</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Subtotal</strong>
+                            <div>@Model.Currency @Model.Subtotal.ToString("N2")</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Penalización</strong>
+                            <div>@Model.Currency @Model.PenaltyAmount.ToString("N2")</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total</strong>
+                            <div class="fs-5 fw-bold text-primary">
+                                @Model.Currency @Model.TotalAmount.ToString("N2")
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (Model.FlightChangeRequest is not null)
+                    {
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h2 class="h5">Datos de la reprogramación</h2>
+                                <div class="row g-3">
+                                    <div class="col-md-4"><strong>Reserva</strong><div>@Model.FlightChangeRequest.BookingId</div></div>
+                                    <div class="col-md-4"><strong>Vuelo original</strong><div>@Model.FlightChangeRequest.OriginalFlightId</div></div>
+                                    <div class="col-md-4"><strong>Nuevo vuelo</strong><div>@Model.FlightChangeRequest.NewFlightId</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <h2 class="h5 mb-3">Seleccione una pasarela</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body d-flex flex-column">
+                                    <h3 class="h5">PayPal Sandbox</h3>
+                                    <p class="text-muted flex-grow-1">Pago de prueba mediante el entorno Sandbox de PayPal.</p>
+                                    <form asp-action="StartPayment" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="orderId" value="@Model.OrderId" />
+                                        <input type="hidden" name="gateway" value="PayPal" />
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            Continuar con PayPal
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card h-100 border-success">
+                                <div class="card-body d-flex flex-column">
+                                    <h3 class="h5">PayPhone pruebas</h3>
+                                    <p class="text-muted flex-grow-1">Pago de prueba mediante el ambiente de PayPhone.</p>
+                                    <form asp-action="StartPayment" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="orderId" value="@Model.OrderId" />
+                                        <input type="hidden" name="gateway" value="PayPhone" />
+                                        <button type="submit" class="btn btn-success w-100">
+                                            Continuar con PayPhone
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,92 @@
+@using U3_Examen_Airport.Models
+
+@{
+    ViewData["Title"] = "Comparar vuelos";
+
+    Booking? booking = ViewBag.Booking as Booking;
+    Flight? currentFlight = ViewBag.CurrentFlight as Flight;
+    Flight? newFlight = ViewBag.NewFlight as Flight;
+    Airport? originAirport = ViewBag.OriginAirport as Airport;
+    Airport? destinationAirport = ViewBag.DestinationAirport as Airport;
+    decimal newPrice = ViewBag.NewPrice is decimal valueNewPrice ? valueNewPrice : 0m;
+    decimal fareDifference = ViewBag.FareDifference is decimal valueFareDifference ? valueFareDifference : 0m;
+    decimal penaltyAmount = ViewBag.PenaltyAmount is decimal valuePenaltyAmount ? valuePenaltyAmount : 0m;
+    decimal totalAmount = ViewBag.TotalAmount is decimal valueTotalAmount ? valueTotalAmount : 0m;
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Comparación de vuelos</h1>
+        <a asp-action="SelectFlight"
+           asp-route-bookingId="@booking?.BookingId"
+           class="btn btn-outline-secondary">
+            Volver a vuelos alternativos
+        </a>
+    </div>
+
+    @if (ViewBag.InformationMessage is not null)
+    {
+        <div class="alert alert-info">@ViewBag.InformationMessage</div>
+    }
+
+    @if (booking is not null && currentFlight is not null && newFlight is not null)
+    {
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card h-100 shadow-sm border-secondary">
+                    <div class="card-header"><h2 class="h5 mb-0">Vuelo actual</h2></div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Vuelo</dt><dd class="col-sm-8">@currentFlight.Flightno</dd>
+                            <dt class="col-sm-4">Origen</dt><dd class="col-sm-8">@originAirport?.Name</dd>
+                            <dt class="col-sm-4">Destino</dt><dd class="col-sm-8">@destinationAirport?.Name</dd>
+                            <dt class="col-sm-4">Salida</dt><dd class="col-sm-8">@(currentFlight.Departure.ToString("dd/MM/yyyy HH:mm"))</dd>
+                            <dt class="col-sm-4">Llegada</dt><dd class="col-sm-8">@(currentFlight.Arrival.ToString("dd/MM/yyyy HH:mm"))</dd>
+                            <dt class="col-sm-4">Precio</dt><dd class="col-sm-8">$@booking.Price.ToString("N2")</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card h-100 shadow-sm border-success">
+                    <div class="card-header bg-success text-white"><h2 class="h5 mb-0">Nuevo vuelo</h2></div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Vuelo</dt><dd class="col-sm-8">@newFlight.Flightno</dd>
+                            <dt class="col-sm-4">Origen</dt><dd class="col-sm-8">@originAirport?.Name</dd>
+                            <dt class="col-sm-4">Destino</dt><dd class="col-sm-8">@destinationAirport?.Name</dd>
+                            <dt class="col-sm-4">Salida</dt><dd class="col-sm-8">@(newFlight.Departure.ToString("dd/MM/yyyy HH:mm"))</dd>
+                            <dt class="col-sm-4">Llegada</dt><dd class="col-sm-8">@(newFlight.Arrival.ToString("dd/MM/yyyy HH:mm"))</dd>
+                            <dt class="col-sm-4">Precio</dt><dd class="col-sm-8">$@newPrice.ToString("N2")</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-primary text-white"><h2 class="h5 mb-0">Resumen del cambio</h2></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md"><strong>Precio actual</strong><div>$@booking.Price.ToString("N2")</div></div>
+                    <div class="col-md"><strong>Precio nuevo</strong><div>$@newPrice.ToString("N2")</div></div>
+                    <div class="col-md"><strong>Diferencia</strong><div>$@fareDifference.ToString("N2")</div></div>
+                    <div class="col-md"><strong>Penalización</strong><div>$@penaltyAmount.ToString("N2")</div></div>
+                    <div class="col-md"><strong>Total a pagar</strong><div class="fs-5 fw-bold text-primary">$@totalAmount.ToString("N2")</div></div>
+                </div>
+
+                <hr />
+
+                <form asp-action="ConfirmReprogramming" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="bookingId" value="@booking.BookingId" />
+                    <input type="hidden" name="newFlightId" value="@newFlight.FlightId" />
+                    <button type="submit" class="btn btn-success">
+                        Confirmar reprogramación
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+</div>

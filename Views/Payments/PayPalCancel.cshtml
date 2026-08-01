@@ -1,0 +1,26 @@
+@model U3_Examen_Airport.Models.Application.Payment
+
+@{
+    ViewData["Title"] = "Pago cancelado";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm text-center">
+                <div class="card-header bg-warning">
+                    <h1 class="h4 mb-0">Pago cancelado</h1>
+                </div>
+                <div class="card-body py-4">
+                    <p>El proceso de PayPal para la orden <strong>#@Model.OrderId</strong> fue cancelado.</p>
+                    <p>No se modificó el vuelo de la reserva.</p>
+                    <a asp-action="SelectGateway"
+                       asp-route-orderId="@Model.OrderId"
+                       class="btn btn-outline-primary">
+                        Volver a la orden
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

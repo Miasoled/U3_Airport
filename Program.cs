@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using U3_Examen_Airport.Data;
+using U3_Examen_Airport.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,8 @@ builder.Services.AddDbContext<AirportContext>(options =>
 // Contexto para Identity y las tablas propias del examen
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddHttpClient<IPayPalService, PayPalService>();
 
 // Configuración de Identity
 builder.Services
