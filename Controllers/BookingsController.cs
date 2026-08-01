@@ -22,10 +22,37 @@ namespace U3_Examen_Airport.Controllers
         }
 
         // GET: Bookings
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(
+            int page = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
-            var airportContext = _context.Bookings.Include(b => b.Flight);
-            return View(await airportContext.ToListAsync());
+            page = Math.Max(1, page);
+            pageSize = pageSize is 10 or 25 or 50 ? pageSize : 10;
+
+            var query = _context.Bookings
+                .AsNoTracking()
+                .Include(item => item.Flight);
+            var totalRecords = await query.CountAsync(cancellationToken);
+            var totalPages = Math.Max(1, (int)Math.Ceiling(totalRecords / (double)pageSize));
+            page = Math.Min(page, totalPages);
+
+            var records = await query
+                .OrderByDescending(item => item.BookingId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            SetPagination(page, pageSize, totalRecords, totalPages);
+            return View(records);
+        }
+
+        private void SetPagination(int page, int pageSize, int totalRecords, int totalPages)
+        {
+            ViewBag.CurrentPage = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalRecords = totalRecords;
+            ViewBag.TotalPages = totalPages;
         }
 
         // GET: Bookings/Details/5

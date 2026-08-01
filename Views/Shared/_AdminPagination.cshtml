@@ -1,0 +1,42 @@
+@{
+    int currentPage = ViewBag.CurrentPage is int current ? current : 1;
+    int pageSize = ViewBag.PageSize is int size ? size : 10;
+    int totalRecords = ViewBag.TotalRecords is int total ? total : 0;
+    int totalPages = ViewBag.TotalPages is int pages ? pages : 1;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+    <div class="text-muted small">
+        Página @currentPage de @totalPages · @totalRecords registros
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-3">
+        <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+            <label for="pageSize" class="form-label mb-0 text-nowrap">Por página</label>
+            <select id="pageSize" name="pageSize" class="form-select form-select-sm"
+                    onchange="this.form.submit()">
+                <option value="10" selected="@(pageSize == 10)">10</option>
+                <option value="25" selected="@(pageSize == 25)">25</option>
+                <option value="50" selected="@(pageSize == 50)">50</option>
+            </select>
+        </form>
+
+        <nav aria-label="Paginación del listado">
+            <ul class="pagination mb-0">
+                <li class="page-item @(currentPage <= 1 ? "disabled" : null)">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-page="@(currentPage - 1)"
+                       asp-route-pageSize="@pageSize">Anterior</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">@currentPage</span>
+                </li>
+                <li class="page-item @(currentPage >= totalPages ? "disabled" : null)">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-page="@(currentPage + 1)"
+                       asp-route-pageSize="@pageSize">Siguiente</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
