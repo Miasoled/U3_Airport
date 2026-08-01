@@ -11,6 +11,14 @@
     Dictionary<int, string> airportNames =
         ViewBag.AirportNames as Dictionary<int, string> ?? new Dictionary<int, string>();
     bool passengerNotLinked = ViewBag.PassengerNotLinked is true;
+    string searchText = ViewBag.SearchText as string ?? string.Empty;
+    DateTime? dateFrom = ViewBag.DateFrom as DateTime?;
+    DateTime? dateTo = ViewBag.DateTo as DateTime?;
+    string sortOrder = ViewBag.SortOrder as string ?? "booking_desc";
+    int currentPage = ViewBag.CurrentPage is int valueCurrentPage ? valueCurrentPage : 1;
+    int pageSize = ViewBag.PageSize is int valuePageSize ? valuePageSize : 10;
+    int totalRecords = ViewBag.TotalRecords is int valueTotalRecords ? valueTotalRecords : 0;
+    int totalPages = ViewBag.TotalPages is int valueTotalPages ? valueTotalPages : 1;
 }
 
 <div class="container py-4">
@@ -24,6 +32,63 @@
                 </div>
 
                 <div class="card-body">
+                    @if (!passengerNotLinked)
+                    {
+                        <form asp-action="Index" method="get" class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label for="searchText" class="form-label">Número de vuelo</label>
+                                <input id="searchText"
+                                       name="searchText"
+                                       value="@searchText"
+                                       class="form-control"
+                                       placeholder="Ejemplo: LH123" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="dateFrom" class="form-label">Salida desde</label>
+                                <input id="dateFrom"
+                                       name="dateFrom"
+                                       type="date"
+                                       value="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="dateTo" class="form-label">Salida hasta</label>
+                                <input id="dateTo"
+                                       name="dateTo"
+                                       type="date"
+                                       value="@(dateTo?.ToString("yyyy-MM-dd"))"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="pageSize" class="form-label">Por página</label>
+                                <select id="pageSize" name="pageSize" class="form-select">
+                                    <option value="5" selected="@(pageSize == 5)">5</option>
+                                    <option value="10" selected="@(pageSize == 10)">10</option>
+                                    <option value="20" selected="@(pageSize == 20)">20</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="sortOrder" class="form-label">Ordenar por</label>
+                                <select id="sortOrder" name="sortOrder" class="form-select">
+                                    <option value="booking_desc" selected="@(sortOrder == "booking_desc")">Reserva más reciente</option>
+                                    <option value="departure_asc" selected="@(sortOrder == "departure_asc")">Salida ascendente</option>
+                                    <option value="departure_desc" selected="@(sortOrder == "departure_desc")">Salida descendente</option>
+                                    <option value="price_asc" selected="@(sortOrder == "price_asc")">Precio menor</option>
+                                    <option value="price_desc" selected="@(sortOrder == "price_desc")">Precio mayor</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-8 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary">Buscar y filtrar</button>
+                                <a asp-action="Index" class="btn btn-outline-secondary">Limpiar</a>
+                            </div>
+                        </form>
+                    }
+
                     @if (passengerNotLinked)
                     {
                         <div class="alert alert-warning mb-0">
@@ -34,7 +99,7 @@
                     else if (userBookings.Count == 0)
                     {
                         <div class="alert alert-info mb-0">
-                            No se encontraron reservas asociadas a su cuenta.
+                            No se encontraron reservas con los criterios seleccionados.
                         </div>
                     }
                     else
@@ -90,6 +155,44 @@
                                     }
                                 </tbody>
                             </table>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+                            <div class="text-muted">
+                                Página @currentPage de @totalPages · @totalRecords registros · @pageSize por página
+                            </div>
+
+                            <nav aria-label="Paginación de reservas">
+                                <ul class="pagination mb-0">
+                                    <li class="page-item @(currentPage <= 1 ? "disabled" : null)">
+                                        <a class="page-link"
+                                           asp-action="Index"
+                                           asp-route-searchText="@searchText"
+                                           asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                                           asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))"
+                                           asp-route-sortOrder="@sortOrder"
+                                           asp-route-pageSize="@pageSize"
+                                           asp-route-page="@(currentPage - 1)">
+                                            Anterior
+                                        </a>
+                                    </li>
+                                    <li class="page-item disabled">
+                                        <span class="page-link">@currentPage</span>
+                                    </li>
+                                    <li class="page-item @(currentPage >= totalPages ? "disabled" : null)">
+                                        <a class="page-link"
+                                           asp-action="Index"
+                                           asp-route-searchText="@searchText"
+                                           asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                                           asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))"
+                                           asp-route-sortOrder="@sortOrder"
+                                           asp-route-pageSize="@pageSize"
+                                           asp-route-page="@(currentPage + 1)">
+                                            Siguiente
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
                         </div>
                     }
                 </div>

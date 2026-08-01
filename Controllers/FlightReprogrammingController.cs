@@ -23,7 +23,14 @@ public class FlightReprogrammingController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(
+        string? searchText,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string sortOrder = "booking_desc",
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
         var userEmail = User.Identity?.Name;
 
@@ -32,7 +39,15 @@ public class FlightReprogrammingController : Controller
             return Challenge();
         }
 
-        await PopulateUserBookingsAsync(userEmail, cancellationToken);
+        await PopulateUserBookingsAsync(
+            userEmail,
+            searchText,
+            dateFrom,
+            dateTo,
+            sortOrder,
+            page,
+            pageSize,
+            cancellationToken);
 
         return View();
     }
@@ -48,7 +63,15 @@ public class FlightReprogrammingController : Controller
 
         if (!string.IsNullOrWhiteSpace(userEmail))
         {
-            await PopulateUserBookingsAsync(userEmail, cancellationToken);
+            await PopulateUserBookingsAsync(
+                userEmail,
+                null,
+                null,
+                null,
+                "booking_desc",
+                1,
+                10,
+                cancellationToken);
         }
 
         if (bookingId <= 0)
@@ -351,8 +374,24 @@ public class FlightReprogrammingController : Controller
 
     private async Task PopulateUserBookingsAsync(
         string userEmail,
+        string? searchText,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string sortOrder,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken)
     {
+        page = Math.Max(1, page);
+        pageSize = pageSize is 5 or 10 or 20 ? pageSize : 10;
+        sortOrder = sortOrder is "departure_asc" or "departure_desc"
+            or "price_asc" or "price_desc" or "booking_desc"
+            ? sortOrder
+            : "booking_desc";
+        searchText = string.IsNullOrWhiteSpace(searchText)
+            ? null
+            : searchText.Trim();
+
         var normalizedEmail = userEmail.Trim();
         var passengerDetail = await _airportContext.Passengerdetails
             .AsNoTracking()
@@ -367,15 +406,60 @@ public class FlightReprogrammingController : Controller
             ViewBag.AirportNames = new Dictionary<int, string>();
             ViewBag.LinkedPassengerId = null;
             ViewBag.PassengerNotLinked = true;
+            SetBookingPaginationViewBag(
+                searchText,
+                dateFrom,
+                dateTo,
+                sortOrder,
+                page,
+                pageSize,
+                0,
+                1);
             return;
         }
 
-        var userBookings = await _airportContext.Bookings
+        var bookingsQuery = _airportContext.Bookings
             .AsNoTracking()
             .Include(b => b.Flight)
-            .Where(b => b.PassengerId == passengerDetail.PassengerId)
-            .OrderByDescending(b => b.BookingId)
-            .Take(20)
+            .Where(b => b.PassengerId == passengerDetail.PassengerId);
+
+        if (searchText is not null)
+        {
+            bookingsQuery = bookingsQuery.Where(
+                b => b.Flight.Flightno.Contains(searchText));
+        }
+
+        if (dateFrom.HasValue)
+        {
+            bookingsQuery = bookingsQuery.Where(
+                b => b.Flight.Departure >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            var exclusiveDateTo = dateTo.Value.Date.AddDays(1);
+            bookingsQuery = bookingsQuery.Where(
+                b => b.Flight.Departure < exclusiveDateTo);
+        }
+
+        var totalRecords = await bookingsQuery.CountAsync(cancellationToken);
+        var totalPages = Math.Max(
+            1,
+            (int)Math.Ceiling(totalRecords / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        bookingsQuery = sortOrder switch
+        {
+            "departure_asc" => bookingsQuery.OrderBy(b => b.Flight.Departure),
+            "departure_desc" => bookingsQuery.OrderByDescending(b => b.Flight.Departure),
+            "price_asc" => bookingsQuery.OrderBy(b => b.Price),
+            "price_desc" => bookingsQuery.OrderByDescending(b => b.Price),
+            _ => bookingsQuery.OrderByDescending(b => b.BookingId)
+        };
+
+        var userBookings = await bookingsQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         var airportIds = userBookings
@@ -402,6 +486,35 @@ public class FlightReprogrammingController : Controller
         ViewBag.AirportNames = airportNames;
         ViewBag.LinkedPassengerId = passengerDetail.PassengerId;
         ViewBag.PassengerNotLinked = false;
+        SetBookingPaginationViewBag(
+            searchText,
+            dateFrom,
+            dateTo,
+            sortOrder,
+            page,
+            pageSize,
+            totalRecords,
+            totalPages);
+    }
+
+    private void SetBookingPaginationViewBag(
+        string? searchText,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string sortOrder,
+        int page,
+        int pageSize,
+        int totalRecords,
+        int totalPages)
+    {
+        ViewBag.SearchText = searchText;
+        ViewBag.DateFrom = dateFrom;
+        ViewBag.DateTo = dateTo;
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalRecords = totalRecords;
+        ViewBag.TotalPages = totalPages;
     }
 
     private async Task<bool> CanAccessBookingAsync(
