@@ -58,7 +58,7 @@
                 @Html.DisplayFor(modelItem => item.ResponseData)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Payment.Currency)
+                @Html.DisplayFor(modelItem => item.Payment!.Currency)
             </td>
             <td>
                 <a asp-action="Edit" asp-route-id="@item.TransactionHistoryId">Edit</a> |

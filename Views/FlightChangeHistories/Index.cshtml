@@ -52,7 +52,7 @@
                 @Html.DisplayFor(modelItem => item.Observation)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.FlightChangeRequest.Status)
+                @Html.DisplayFor(modelItem => item.FlightChangeRequest!.Status)
             </td>
             <td>
                 <a asp-action="Edit" asp-route-id="@item.FlightChangeHistoryId">Edit</a> |

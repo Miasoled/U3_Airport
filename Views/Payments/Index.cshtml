@@ -76,7 +76,7 @@
                 @Html.DisplayFor(modelItem => item.ResponseMessage)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Order.Currency)
+                @Html.DisplayFor(modelItem => item.Order!.Currency)
             </td>
             <td>
                 <a asp-action="Edit" asp-route-id="@item.PaymentId">Edit</a> |
