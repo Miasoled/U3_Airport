@@ -12,6 +12,7 @@
     decimal fareDifference = ViewBag.FareDifference is decimal valueFareDifference ? valueFareDifference : 0m;
     decimal penaltyAmount = ViewBag.PenaltyAmount is decimal valuePenaltyAmount ? valuePenaltyAmount : 0m;
     decimal totalAmount = ViewBag.TotalAmount is decimal valueTotalAmount ? valueTotalAmount : 0m;
+    string newSeat = ViewBag.NewSeat as string ?? string.Empty;
 }
 
 <div class="container py-4">
@@ -59,6 +60,7 @@
                             <dt class="col-sm-4">Salida</dt><dd class="col-sm-8">@(newFlight.Departure.ToString("dd/MM/yyyy HH:mm"))</dd>
                             <dt class="col-sm-4">Llegada</dt><dd class="col-sm-8">@(newFlight.Arrival.ToString("dd/MM/yyyy HH:mm"))</dd>
                             <dt class="col-sm-4">Precio</dt><dd class="col-sm-8">$@newPrice.ToString("N2")</dd>
+                            <dt class="col-sm-4">Nuevo asiento</dt><dd class="col-sm-8"><strong>@newSeat</strong></dd>
                         </dl>
                     </div>
                 </div>
@@ -82,6 +84,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="bookingId" value="@booking.BookingId" />
                     <input type="hidden" name="newFlightId" value="@newFlight.FlightId" />
+                    <input type="hidden" name="newSeat" value="@newSeat" />
                     <button type="submit" class="btn btn-success">
                         Confirmar reprogramación
                     </button>

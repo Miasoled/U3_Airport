@@ -322,12 +322,52 @@ public class FlightReprogrammingController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Compare(
+    public async Task<IActionResult> SelectSeat(
         int bookingId,
         int newFlightId,
         CancellationToken cancellationToken)
     {
-        if (bookingId <= 0 || newFlightId <= 0)
+        var booking = await _airportContext.Bookings
+            .AsNoTracking()
+            .Include(item => item.Flight)
+            .FirstOrDefaultAsync(item => item.BookingId == bookingId, cancellationToken);
+
+        if (booking?.Flight is null
+            || !await CanAccessBookingAsync(booking, cancellationToken))
+        {
+            return booking is null ? NotFound() : Forbid();
+        }
+
+        var newFlight = await _airportContext.Flights
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                item => item.FlightId == newFlightId
+                        && item.FlightId != booking.FlightId
+                        && item.From == booking.Flight.From
+                        && item.To == booking.Flight.To,
+                cancellationToken);
+
+        if (newFlight is null)
+        {
+            return NotFound();
+        }
+
+        ViewBag.Booking = booking;
+        ViewBag.AvailableSeats = await GetAvailableSeatsAsync(
+            newFlightId,
+            cancellationToken);
+
+        return View(newFlight);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Compare(
+        int bookingId,
+        int newFlightId,
+        string newSeat,
+        CancellationToken cancellationToken)
+    {
+        if (bookingId <= 0 || newFlightId <= 0 || string.IsNullOrWhiteSpace(newSeat))
         {
             return NotFound();
         }
@@ -359,6 +399,18 @@ public class FlightReprogrammingController : Controller
             return NotFound();
         }
 
+        var normalizedSeat = NormalizeSeat(newSeat);
+        if (!await IsSeatAvailableAsync(newFlightId, normalizedSeat, cancellationToken))
+        {
+            TempData["ErrorMessage"] =
+                "El asiento seleccionado ya no está disponible. Seleccione otro asiento.";
+            return RedirectToAction(
+                nameof(SelectSeat),
+                new { bookingId, newFlightId });
+        }
+
+        ViewBag.NewSeat = normalizedSeat;
+
         return View();
     }
 
@@ -368,9 +420,10 @@ public class FlightReprogrammingController : Controller
     public async Task<IActionResult> ConfirmReprogramming(
         int bookingId,
         int newFlightId,
+        string newSeat,
         CancellationToken cancellationToken)
     {
-        if (bookingId <= 0 || newFlightId <= 0)
+        if (bookingId <= 0 || newFlightId <= 0 || string.IsNullOrWhiteSpace(newSeat))
         {
             return NotFound();
         }
@@ -406,6 +459,16 @@ public class FlightReprogrammingController : Controller
             return NotFound();
         }
 
+        var normalizedSeat = NormalizeSeat(newSeat);
+        if (!await IsSeatAvailableAsync(newFlightId, normalizedSeat, cancellationToken))
+        {
+            TempData["ErrorMessage"] =
+                "El asiento seleccionado ya no está disponible. Seleccione otro asiento.";
+            return RedirectToAction(
+                nameof(SelectSeat),
+                new { bookingId, newFlightId });
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrWhiteSpace(userId))
@@ -425,6 +488,7 @@ public class FlightReprogrammingController : Controller
             BookingId = booking.BookingId,
             OriginalFlightId = booking.FlightId,
             NewFlightId = newFlight.FlightId,
+            NewSeat = normalizedSeat,
             RequestDate = DateTime.UtcNow,
             OriginalPrice = originalPrice,
             NewPrice = newPrice,
@@ -650,6 +714,60 @@ public class FlightReprogrammingController : Controller
                      && p.Emailaddress != null
                      && p.Emailaddress.Trim() == normalizedEmail,
                 cancellationToken);
+    }
+
+    private async Task<List<string>> GetAvailableSeatsAsync(
+        int flightId,
+        CancellationToken cancellationToken)
+    {
+        var occupiedValues = await _airportContext.Bookings
+            .AsNoTracking()
+            .Where(item => item.FlightId == flightId && item.Seat != null)
+            .Select(item => item.Seat!)
+            .ToListAsync(cancellationToken);
+
+        var occupiedSeats = occupiedValues
+            .Select(NormalizeSeat)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return Enumerable.Range(1, 50)
+            .SelectMany(row => new[] { 'A', 'B', 'C', 'D', 'E', 'F' }
+                .Select(letter => $"{row}{letter}"))
+            .Where(seat => !occupiedSeats.Contains(seat))
+            .ToList();
+    }
+
+    private async Task<bool> IsSeatAvailableAsync(
+        int flightId,
+        string seat,
+        CancellationToken cancellationToken)
+    {
+        if (!IsValidSeat(seat))
+        {
+            return false;
+        }
+
+        return !await _airportContext.Bookings
+            .AsNoTracking()
+            .AnyAsync(
+                item => item.FlightId == flightId && item.Seat == seat,
+                cancellationToken);
+    }
+
+    private static string NormalizeSeat(string seat) =>
+        seat.Trim().ToUpperInvariant();
+
+    private static bool IsValidSeat(string seat)
+    {
+        var normalizedSeat = NormalizeSeat(seat);
+        if (normalizedSeat.Length is < 2 or > 3
+            || normalizedSeat[^1] is < 'A' or > 'F')
+        {
+            return false;
+        }
+
+        return int.TryParse(normalizedSeat[..^1], out var row)
+            && row is >= 1 and <= 50;
     }
 
     private async Task<bool> LoadComparisonAsync(

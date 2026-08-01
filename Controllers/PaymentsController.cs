@@ -434,7 +434,94 @@ namespace U3_Examen_Airport.Controllers
                 return Forbid();
             }
 
+            if (string.Equals(payment.Status, "Aprobado", StringComparison.OrdinalIgnoreCase))
+            {
+                var changeRequest = payment.Order.FlightChangeRequest;
+                var booking = await _airportContext.Bookings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(
+                        item => item.BookingId == changeRequest.BookingId,
+                        cancellationToken);
+
+                var updatePending = booking is not null
+                    && (booking.FlightId != changeRequest.NewFlightId
+                        || (!string.IsNullOrWhiteSpace(changeRequest.NewSeat)
+                            && !string.Equals(
+                                booking.Seat?.Trim(),
+                                changeRequest.NewSeat.Trim(),
+                                StringComparison.OrdinalIgnoreCase)));
+
+                if (updatePending)
+                {
+                    ViewBag.AvailableSeats = await GetAvailableSeatsAsync(
+                        changeRequest.NewFlightId,
+                        cancellationToken);
+                }
+            }
+
             return View(payment);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SelectReplacementSeat(
+            int paymentId,
+            string newSeat,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _context.Payments
+                .Include(item => item.Order)
+                .ThenInclude(order => order!.FlightChangeRequest)
+                .FirstOrDefaultAsync(
+                    item => item.PaymentId == paymentId,
+                    cancellationToken);
+
+            if (payment?.Order?.FlightChangeRequest is null)
+            {
+                return NotFound();
+            }
+
+            if (!CanAccess(payment.UserId))
+            {
+                return Forbid();
+            }
+
+            if (!string.Equals(payment.Status, "Aprobado", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("Solo se puede corregir el asiento de un pago aprobado.");
+            }
+
+            var normalizedSeat = newSeat?.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(normalizedSeat)
+                || !await IsSeatAvailableAsync(
+                    payment.Order.FlightChangeRequest.NewFlightId,
+                    normalizedSeat,
+                    cancellationToken))
+            {
+                TempData["WarningMessage"] =
+                    "El asiento seleccionado ya no está disponible. Seleccione otro asiento.";
+                return RedirectToAction(nameof(Receipt), new { paymentId });
+            }
+
+            payment.Order.FlightChangeRequest.NewSeat = normalizedSeat;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var bookingUpdate = await UpdateBookingFlightAsync(
+                payment.Order.FlightChangeRequest,
+                cancellationToken);
+
+            if (bookingUpdate.Succeeded)
+            {
+                TempData["SuccessMessage"] =
+                    "El nuevo asiento fue guardado y la reserva quedó actualizada.";
+            }
+            else
+            {
+                TempData["WarningMessage"] = bookingUpdate.Message;
+            }
+
+            return RedirectToAction(nameof(Receipt), new { paymentId });
         }
 
         [HttpPost]
@@ -686,12 +773,32 @@ namespace U3_Examen_Airport.Controllers
                         "El pago fue aprobado, pero el nuevo vuelo ya no existe. Requiere revisión administrativa.");
                 }
 
-                if (booking.FlightId == flightChangeRequest.NewFlightId)
+                var targetSeat = string.IsNullOrWhiteSpace(flightChangeRequest.NewSeat)
+                    ? booking.Seat?.Trim()
+                    : flightChangeRequest.NewSeat.Trim().ToUpperInvariant();
+
+                if (string.IsNullOrWhiteSpace(targetSeat))
+                {
+                    _logger.LogWarning(
+                        "FlightChangeRequest no contiene un asiento nuevo válido. " +
+                        "BookingId: {BookingId}, OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                        booking.BookingId,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "La solicitud no contiene un asiento válido para el nuevo vuelo.");
+                }
+
+                var currentSeat = booking.Seat?.Trim();
+                if (booking.FlightId == flightChangeRequest.NewFlightId
+                    && string.Equals(currentSeat, targetSeat, StringComparison.OrdinalIgnoreCase))
                 {
                     return BookingUpdateResult.Success(alreadyUpdated: true);
                 }
 
-                if (booking.FlightId != flightChangeRequest.OriginalFlightId)
+                if (booking.FlightId != flightChangeRequest.OriginalFlightId
+                    && booking.FlightId != flightChangeRequest.NewFlightId)
                 {
                     _logger.LogWarning(
                         "Booking apunta a un vuelo inesperado y no será sobrescrito. " +
@@ -711,7 +818,7 @@ namespace U3_Examen_Airport.Controllers
                     .AnyAsync(
                         item => item.BookingId != booking.BookingId
                                 && item.FlightId == flightChangeRequest.NewFlightId
-                                && item.Seat == booking.Seat,
+                                && item.Seat == targetSeat,
                         cancellationToken);
 
                 if (seatOccupied)
@@ -721,22 +828,24 @@ namespace U3_Examen_Airport.Controllers
                         "BookingId: {BookingId}, Seat: {Seat}, OriginalFlightId: {OriginalFlightId}, " +
                         "NewFlightId: {NewFlightId}",
                         booking.BookingId,
-                        booking.Seat,
+                        targetSeat,
                         flightChangeRequest.OriginalFlightId,
                         flightChangeRequest.NewFlightId);
 
                     return BookingUpdateResult.Failure(
-                        "El asiento actual ya está ocupado en el nuevo vuelo.");
+                        "El asiento seleccionado ya está ocupado en el nuevo vuelo. Seleccione otro asiento.");
                 }
 
                 booking.FlightId = flightChangeRequest.NewFlightId;
+                booking.Seat = targetSeat;
                 await _airportContext.SaveChangesAsync(cancellationToken);
 
                 var updateConfirmed = await _airportContext.Bookings
                     .AsNoTracking()
                     .AnyAsync(
                         item => item.BookingId == booking.BookingId
-                                && item.FlightId == flightChangeRequest.NewFlightId,
+                                && item.FlightId == flightChangeRequest.NewFlightId
+                                && item.Seat == targetSeat,
                         cancellationToken);
 
                 if (!updateConfirmed)
@@ -776,6 +885,47 @@ namespace U3_Examen_Airport.Controllers
                 return BookingUpdateResult.Failure(
                     "El pago fue aprobado, pero no fue posible actualizar la reserva. Requiere revisión administrativa.");
             }
+        }
+
+        private async Task<List<string>> GetAvailableSeatsAsync(
+            int flightId,
+            CancellationToken cancellationToken)
+        {
+            var occupiedValues = await _airportContext.Bookings
+                .AsNoTracking()
+                .Where(item => item.FlightId == flightId && item.Seat != null)
+                .Select(item => item.Seat!)
+                .ToListAsync(cancellationToken);
+
+            var occupiedSeats = occupiedValues
+                .Select(seat => seat.Trim().ToUpperInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return Enumerable.Range(1, 50)
+                .SelectMany(row => new[] { 'A', 'B', 'C', 'D', 'E', 'F' }
+                    .Select(letter => $"{row}{letter}"))
+                .Where(seat => !occupiedSeats.Contains(seat))
+                .ToList();
+        }
+
+        private async Task<bool> IsSeatAvailableAsync(
+            int flightId,
+            string seat,
+            CancellationToken cancellationToken)
+        {
+            if (seat.Length is < 2 or > 3
+                || seat[^1] is < 'A' or > 'F'
+                || !int.TryParse(seat[..^1], out var row)
+                || row is < 1 or > 50)
+            {
+                return false;
+            }
+
+            return !await _airportContext.Bookings
+                .AsNoTracking()
+                .AnyAsync(
+                    item => item.FlightId == flightId && item.Seat == seat,
+                    cancellationToken);
         }
 
         private async Task<Payment> RegisterFailedPaymentAttemptAsync(

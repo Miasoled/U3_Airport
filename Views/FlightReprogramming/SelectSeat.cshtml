@@ -1,0 +1,68 @@
+@model U3_Examen_Airport.Models.Flight
+@using U3_Examen_Airport.Models
+
+@{
+    ViewData["Title"] = "Seleccionar nuevo asiento";
+    var booking = ViewBag.Booking as Booking;
+    var availableSeats = ViewBag.AvailableSeats as List<string> ?? new List<string>();
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h4 mb-0">Seleccionar asiento para el nuevo vuelo</h1>
+                </div>
+                <div class="card-body">
+                    @if (TempData["ErrorMessage"] is string errorMessage)
+                    {
+                        <div class="alert alert-warning">@errorMessage</div>
+                    }
+
+                    <dl class="row">
+                        <dt class="col-sm-5">Reserva</dt>
+                        <dd class="col-sm-7">@booking?.BookingId</dd>
+                        <dt class="col-sm-5">Vuelo nuevo</dt>
+                        <dd class="col-sm-7">@Model.Flightno</dd>
+                        <dt class="col-sm-5">Asiento actual</dt>
+                        <dd class="col-sm-7">@(booking?.Seat?.Trim() ?? "Sin asignar")</dd>
+                    </dl>
+
+                    @if (availableSeats.Count == 0)
+                    {
+                        <div class="alert alert-danger">
+                            No existen asientos disponibles para el vuelo seleccionado.
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="Compare" method="get">
+                            <input type="hidden" name="bookingId" value="@booking?.BookingId" />
+                            <input type="hidden" name="newFlightId" value="@Model.FlightId" />
+
+                            <div class="mb-3">
+                                <label for="newSeat" class="form-label">Asiento disponible</label>
+                                <select id="newSeat" name="newSeat" class="form-select" required>
+                                    <option value="">Seleccione un asiento...</option>
+                                    @foreach (var seat in availableSeats)
+                                    {
+                                        <option value="@seat">@seat</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-success">Continuar a comparación</button>
+                        </form>
+                    }
+
+                    <a asp-action="SelectFlight"
+                       asp-route-bookingId="@booking?.BookingId"
+                       class="btn btn-outline-secondary mt-3">
+                        Volver a vuelos alternativos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -27,6 +27,10 @@ public class FlightChangeRequest
     [Column("new_flight_id")]
     public int NewFlightId { get; set; }
 
+    [Column("new_seat")]
+    [StringLength(4)]
+    public string? NewSeat { get; set; }
+
     [Required]
     [Column("request_date")]
     public DateTime RequestDate { get; set; } = DateTime.UtcNow;

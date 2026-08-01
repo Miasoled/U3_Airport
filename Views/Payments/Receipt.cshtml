@@ -4,6 +4,7 @@
     ViewData["Title"] = "Comprobante de pago";
     var order = Model.Order!;
     var changeRequest = order.FlightChangeRequest!;
+    var availableSeats = ViewBag.AvailableSeats as List<string> ?? new List<string>();
 }
 
 <div class="container py-4">
@@ -53,7 +54,36 @@
 
                         <dt class="col-sm-5">Nuevo vuelo</dt>
                         <dd class="col-sm-7">@changeRequest.NewFlightId</dd>
+
+                        <dt class="col-sm-5">Nuevo asiento</dt>
+                        <dd class="col-sm-7">@(changeRequest.NewSeat ?? "Solicitud histórica")</dd>
                     </dl>
+
+                    @if (availableSeats.Count > 0)
+                    {
+                        <div class="alert alert-warning mt-4">
+                            La reserva todavía no pudo actualizarse. Seleccione otro asiento disponible;
+                            el pago no se procesará nuevamente.
+                        </div>
+
+                        <form asp-action="SelectReplacementSeat" method="post" class="row g-2 align-items-end">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="paymentId" value="@Model.PaymentId" />
+                            <div class="col-md-7">
+                                <label for="newSeat" class="form-label">Nuevo asiento disponible</label>
+                                <select id="newSeat" name="newSeat" class="form-select" required>
+                                    <option value="">Seleccione...</option>
+                                    @foreach (var seat in availableSeats)
+                                    {
+                                        <option value="@seat">@seat</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-5 d-grid">
+                                <button type="submit" class="btn btn-warning">Actualizar asiento</button>
+                            </div>
+                        </form>
+                    }
 
                     @if (User.IsInRole("Administrador")
                         && string.Equals(Model.Status, "Aprobado", StringComparison.OrdinalIgnoreCase))
