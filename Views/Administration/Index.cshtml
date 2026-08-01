@@ -1,0 +1,214 @@
+@model IEnumerable<U3_Examen_Airport.Models.Application.Order>
+@using U3_Examen_Airport.Models.Application
+
+@{
+    ViewData["Title"] = "Administración";
+    string searchText = ViewBag.SearchText as string ?? string.Empty;
+    string status = ViewBag.Status as string ?? string.Empty;
+    DateTime? dateFrom = ViewBag.DateFrom as DateTime?;
+    DateTime? dateTo = ViewBag.DateTo as DateTime?;
+    string sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+    int currentPage = ViewBag.CurrentPage is int valueCurrentPage ? valueCurrentPage : 1;
+    int pageSize = ViewBag.PageSize is int valuePageSize ? valuePageSize : 10;
+    int totalRecords = ViewBag.TotalRecords is int valueTotalRecords ? valueTotalRecords : 0;
+    int totalPages = ViewBag.TotalPages is int valueTotalPages ? valueTotalPages : 1;
+    int totalOrders = ViewBag.TotalOrders is int valueTotalOrders ? valueTotalOrders : 0;
+    int approvedPayments = ViewBag.ApprovedPayments is int valueApprovedPayments ? valueApprovedPayments : 0;
+    decimal approvedRevenue = ViewBag.ApprovedRevenue is decimal valueApprovedRevenue ? valueApprovedRevenue : 0m;
+    decimal averageApprovedPayment = ViewBag.AverageApprovedPayment is decimal valueAverage ? valueAverage : 0m;
+    Dictionary<string, int> ordersByStatus =
+        ViewBag.OrdersByStatus as Dictionary<string, int> ?? new Dictionary<string, int>();
+    Dictionary<string, string> userEmails =
+        ViewBag.UserEmails as Dictionary<string, string> ?? new Dictionary<string, string>();
+    List<TransactionHistory> recentTransactions =
+        ViewBag.RecentTransactions as List<TransactionHistory> ?? new List<TransactionHistory>();
+}
+
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Panel administrativo</h1>
+        <p class="text-muted mb-0">Resumen general de órdenes, pagos y transacciones.</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Órdenes totales</div><div class="fs-3 fw-bold">@totalOrders</div>
+            </div></div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Pagos aprobados</div><div class="fs-3 fw-bold text-success">@approvedPayments</div>
+            </div></div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Ingresos aprobados</div><div class="fs-3 fw-bold">USD @approvedRevenue.ToString("N2")</div>
+            </div></div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Pago promedio</div><div class="fs-3 fw-bold">USD @averageApprovedPayment.ToString("N2")</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">Órdenes por estado</h2></div>
+        <div class="card-body d-flex flex-wrap gap-2">
+            @foreach (var item in ordersByStatus.OrderBy(item => item.Key))
+            {
+                <span class="badge bg-secondary fs-6">@item.Key: @item.Value</span>
+            }
+            @if (ordersByStatus.Count == 0)
+            {
+                <span class="text-muted">Todavía no existen órdenes.</span>
+            }
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">Consultar órdenes</h2></div>
+        <div class="card-body">
+            <form asp-action="Index" method="get" class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label for="searchText" class="form-label">Orden o correo</label>
+                    <input id="searchText" name="searchText" value="@searchText"
+                           class="form-control" placeholder="Número o correo" />
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Estado</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="Pendiente" selected="@(status == "Pendiente")">Pendiente</option>
+                        <option value="Aprobado" selected="@(status == "Aprobado")">Aprobado</option>
+                        <option value="Cancelado" selected="@(status == "Cancelado")">Cancelado</option>
+                        <option value="Rechazado" selected="@(status == "Rechazado")">Rechazado</option>
+                        <option value="Fallido" selected="@(status == "Fallido")">Fallido</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="dateFrom" class="form-label">Desde</label>
+                    <input id="dateFrom" name="dateFrom" type="date"
+                           value="@(dateFrom?.ToString("yyyy-MM-dd"))" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label for="dateTo" class="form-label">Hasta</label>
+                    <input id="dateTo" name="dateTo" type="date"
+                           value="@(dateTo?.ToString("yyyy-MM-dd"))" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label for="sortOrder" class="form-label">Orden</label>
+                    <select id="sortOrder" name="sortOrder" class="form-select">
+                        <option value="date_desc" selected="@(sortOrder == "date_desc")">Más reciente</option>
+                        <option value="date_asc" selected="@(sortOrder == "date_asc")">Más antiguo</option>
+                        <option value="amount_desc" selected="@(sortOrder == "amount_desc")">Mayor importe</option>
+                        <option value="amount_asc" selected="@(sortOrder == "amount_asc")">Menor importe</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label for="pageSize" class="form-label">Filas</label>
+                    <select id="pageSize" name="pageSize" class="form-select">
+                        <option value="5" selected="@(pageSize == 5)">5</option>
+                        <option value="10" selected="@(pageSize == 10)">10</option>
+                        <option value="20" selected="@(pageSize == 20)">20</option>
+                    </select>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+
+            @if (!Model.Any())
+            {
+                <div class="alert alert-info">No se encontraron órdenes.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead><tr>
+                            <th>Orden</th><th>Fecha</th><th>Cliente</th><th>Reserva</th>
+                            <th>Estado</th><th>Total</th><th>Pago</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            @foreach (var order in Model)
+                            {
+                                var payment = order.Payments.OrderByDescending(item => item.CreationDate).FirstOrDefault();
+                                var email = userEmails.TryGetValue(order.UserId, out var foundEmail)
+                                    ? foundEmail : order.UserId;
+                                <tr>
+                                    <td>@order.OrderId</td>
+                                    <td>@(order.CreationDate.ToString("dd/MM/yyyy HH:mm"))</td>
+                                    <td>@email</td>
+                                    <td>@order.FlightChangeRequest?.BookingId</td>
+                                    <td>@order.Status</td>
+                                    <td>@order.Currency @order.TotalAmount.ToString("N2")</td>
+                                    <td>@(payment?.Status ?? "Sin pago")</td>
+                                    <td class="text-nowrap">
+                                        <a asp-controller="Orders" asp-action="Details" asp-route-id="@order.OrderId"
+                                           class="btn btn-outline-primary btn-sm">Detalle</a>
+                                        @if (payment?.Status == "Aprobado")
+                                        {
+                                            <a asp-controller="Payments" asp-action="Receipt"
+                                               asp-route-paymentId="@payment.PaymentId"
+                                               class="btn btn-outline-success btn-sm">Comprobante</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+                <div class="text-muted">Página @currentPage de @totalPages · @totalRecords registros</div>
+                <nav aria-label="Paginación administrativa"><ul class="pagination mb-0">
+                    <li class="page-item @(currentPage <= 1 ? "disabled" : null)">
+                        <a class="page-link" asp-action="Index" asp-route-searchText="@searchText"
+                           asp-route-status="@status" asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                           asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))" asp-route-sortOrder="@sortOrder"
+                           asp-route-pageSize="@pageSize" asp-route-page="@(currentPage - 1)">Anterior</a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">@currentPage</span></li>
+                    <li class="page-item @(currentPage >= totalPages ? "disabled" : null)">
+                        <a class="page-link" asp-action="Index" asp-route-searchText="@searchText"
+                           asp-route-status="@status" asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                           asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))" asp-route-sortOrder="@sortOrder"
+                           asp-route-pageSize="@pageSize" asp-route-page="@(currentPage + 1)">Siguiente</a>
+                    </li>
+                </ul></nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header"><h2 class="h5 mb-0">Últimas transacciones</h2></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fecha</th><th>Transacción</th><th>Pago</th><th>Pasarela</th><th>Estado</th><th>Monto</th></tr></thead>
+                    <tbody>
+                        @foreach (var transaction in recentTransactions)
+                        {
+                            <tr>
+                                <td>@(transaction.TransactionDate.ToString("dd/MM/yyyy HH:mm"))</td>
+                                <td class="text-break">@transaction.ExternalTransactionId</td>
+                                <td>@transaction.PaymentId</td>
+                                <td>@transaction.Gateway</td>
+                                <td>@transaction.Status</td>
+                                <td>USD @transaction.Amount.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (recentTransactions.Count == 0)
+                        {
+                            <tr><td colspan="6" class="text-center text-muted">No existen transacciones.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
