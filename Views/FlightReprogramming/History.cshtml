@@ -1,0 +1,207 @@
+@model IEnumerable<U3_Examen_Airport.Models.Application.FlightChangeRequest>
+
+@{
+    ViewData["Title"] = "Mi historial de reprogramaciones";
+    int? bookingId = ViewBag.BookingId as int?;
+    string status = ViewBag.Status as string ?? string.Empty;
+    DateTime? dateFrom = ViewBag.DateFrom as DateTime?;
+    DateTime? dateTo = ViewBag.DateTo as DateTime?;
+    string sortOrder = ViewBag.SortOrder as string ?? "date_desc";
+    int currentPage = ViewBag.CurrentPage is int valueCurrentPage ? valueCurrentPage : 1;
+    int pageSize = ViewBag.PageSize is int valuePageSize ? valuePageSize : 10;
+    int totalRecords = ViewBag.TotalRecords is int valueTotalRecords ? valueTotalRecords : 0;
+    int totalPages = ViewBag.TotalPages is int valueTotalPages ? valueTotalPages : 1;
+    decimal approvedTotal = ViewBag.ApprovedTotal is decimal valueApprovedTotal ? valueApprovedTotal : 0m;
+}
+
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Mi historial de reprogramaciones</h1>
+            <p class="text-muted mb-0">Consulte únicamente las operaciones asociadas a su cuenta.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-success">Nueva reprogramación</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted">Operaciones encontradas</div>
+                    <div class="fs-3 fw-bold">@totalRecords</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted">Total aprobado de mi cuenta</div>
+                    <div class="fs-3 fw-bold text-success">USD @approvedTotal.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">Buscar y filtrar</h2></div>
+        <div class="card-body">
+            <form asp-action="History" method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="bookingId" class="form-label">Reserva</label>
+                    <input id="bookingId" name="bookingId" type="number" min="1"
+                           value="@bookingId" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Estado</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="Pendiente" selected="@(status == "Pendiente")">Pendiente</option>
+                        <option value="Aprobado" selected="@(status == "Aprobado")">Aprobado</option>
+                        <option value="Cancelado" selected="@(status == "Cancelado")">Cancelado</option>
+                        <option value="Rechazado" selected="@(status == "Rechazado")">Rechazado</option>
+                        <option value="Fallido" selected="@(status == "Fallido")">Fallido</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="dateFrom" class="form-label">Desde</label>
+                    <input id="dateFrom" name="dateFrom" type="date"
+                           value="@(dateFrom?.ToString("yyyy-MM-dd"))" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label for="dateTo" class="form-label">Hasta</label>
+                    <input id="dateTo" name="dateTo" type="date"
+                           value="@(dateTo?.ToString("yyyy-MM-dd"))" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label for="sortOrder" class="form-label">Orden</label>
+                    <select id="sortOrder" name="sortOrder" class="form-select">
+                        <option value="date_desc" selected="@(sortOrder == "date_desc")">Más reciente</option>
+                        <option value="date_asc" selected="@(sortOrder == "date_asc")">Más antiguo</option>
+                        <option value="amount_desc" selected="@(sortOrder == "amount_desc")">Mayor total</option>
+                        <option value="amount_asc" selected="@(sortOrder == "amount_asc")">Menor total</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="pageSize" class="form-label">Por página</label>
+                    <select id="pageSize" name="pageSize" class="form-select">
+                        <option value="5" selected="@(pageSize == 5)">5</option>
+                        <option value="10" selected="@(pageSize == 10)">10</option>
+                        <option value="20" selected="@(pageSize == 20)">20</option>
+                    </select>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+                    <a asp-action="History" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (!Model.Any())
+            {
+                <div class="alert alert-info mb-0">No existen operaciones con los criterios seleccionados.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Reserva</th>
+                                <th>Vuelo anterior</th>
+                                <th>Nuevo vuelo</th>
+                                <th>Estado</th>
+                                <th>Total</th>
+                                <th>Orden</th>
+                                <th>Pago</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model)
+                            {
+                                var order = request.Orders
+                                    .OrderByDescending(item => item.CreationDate)
+                                    .FirstOrDefault();
+                                var payment = order?.Payments
+                                    .OrderByDescending(item => item.CreationDate)
+                                    .FirstOrDefault();
+                                var badgeClass = request.Status switch
+                                {
+                                    "Aprobado" => "bg-success",
+                                    "Cancelado" => "bg-secondary",
+                                    "Rechazado" => "bg-danger",
+                                    "Fallido" => "bg-danger",
+                                    _ => "bg-warning text-dark"
+                                };
+
+                                <tr>
+                                    <td>@(request.RequestDate.ToString("dd/MM/yyyy HH:mm"))</td>
+                                    <td>@request.BookingId</td>
+                                    <td>@request.OriginalFlightId</td>
+                                    <td>@request.NewFlightId</td>
+                                    <td><span class="badge @badgeClass">@request.Status</span></td>
+                                    <td>USD @request.TotalAmount.ToString("N2")</td>
+                                    <td>@(order?.OrderId.ToString() ?? "—")</td>
+                                    <td>@(payment?.Status ?? "Sin pago")</td>
+                                    <td class="text-nowrap">
+                                        @if (payment is not null
+                                             && payment.Status == "Aprobado")
+                                        {
+                                            <a asp-controller="Payments"
+                                               asp-action="Receipt"
+                                               asp-route-paymentId="@payment.PaymentId"
+                                               class="btn btn-outline-success btn-sm">
+                                                Comprobante
+                                            </a>
+                                        }
+                                        else if (order is not null
+                                                 && order.Status == "Pendiente")
+                                        {
+                                            <a asp-controller="Payments"
+                                               asp-action="SelectGateway"
+                                               asp-route-orderId="@order.OrderId"
+                                               class="btn btn-outline-primary btn-sm">
+                                                Continuar pago
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+                <div class="text-muted">
+                    Página @currentPage de @totalPages · @totalRecords registros · @pageSize por página
+                </div>
+                <nav aria-label="Paginación del historial">
+                    <ul class="pagination mb-0">
+                        <li class="page-item @(currentPage <= 1 ? "disabled" : null)">
+                            <a class="page-link" asp-action="History"
+                               asp-route-bookingId="@bookingId" asp-route-status="@status"
+                               asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                               asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))"
+                               asp-route-sortOrder="@sortOrder" asp-route-pageSize="@pageSize"
+                               asp-route-page="@(currentPage - 1)">Anterior</a>
+                        </li>
+                        <li class="page-item disabled"><span class="page-link">@currentPage</span></li>
+                        <li class="page-item @(currentPage >= totalPages ? "disabled" : null)">
+                            <a class="page-link" asp-action="History"
+                               asp-route-bookingId="@bookingId" asp-route-status="@status"
+                               asp-route-dateFrom="@(dateFrom?.ToString("yyyy-MM-dd"))"
+                               asp-route-dateTo="@(dateTo?.ToString("yyyy-MM-dd"))"
+                               asp-route-sortOrder="@sortOrder" asp-route-pageSize="@pageSize"
+                               asp-route-page="@(currentPage + 1)">Siguiente</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>

@@ -151,6 +151,114 @@ public class FlightReprogrammingController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> History(
+        int? bookingId,
+        string? status,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        string sortOrder = "date_desc",
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Challenge();
+        }
+
+        page = Math.Max(1, page);
+        pageSize = pageSize is 5 or 10 or 20 ? pageSize : 10;
+        sortOrder = sortOrder is "date_asc" or "date_desc"
+            or "amount_asc" or "amount_desc"
+            ? sortOrder
+            : "date_desc";
+
+        var allowedStatuses = new[]
+        {
+            "Pendiente",
+            "Aprobado",
+            "Cancelado",
+            "Rechazado",
+            "Fallido"
+        };
+
+        status = allowedStatuses.Contains(status) ? status : null;
+
+        var userQuery = _applicationContext.FlightChangeRequests
+            .AsNoTracking()
+            .Where(request => request.UserId == userId);
+
+        var approvedTotal = await userQuery
+            .Where(request => request.Status == "Aprobado")
+            .SumAsync(
+                request => (decimal?)request.TotalAmount,
+                cancellationToken) ?? 0m;
+
+        var historyQuery = userQuery;
+
+        if (bookingId.HasValue && bookingId.Value > 0)
+        {
+            historyQuery = historyQuery.Where(
+                request => request.BookingId == bookingId.Value);
+        }
+
+        if (status is not null)
+        {
+            historyQuery = historyQuery.Where(
+                request => request.Status == status);
+        }
+
+        if (dateFrom.HasValue)
+        {
+            historyQuery = historyQuery.Where(
+                request => request.RequestDate >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            var exclusiveDateTo = dateTo.Value.Date.AddDays(1);
+            historyQuery = historyQuery.Where(
+                request => request.RequestDate < exclusiveDateTo);
+        }
+
+        var totalRecords = await historyQuery.CountAsync(cancellationToken);
+        var totalPages = Math.Max(
+            1,
+            (int)Math.Ceiling(totalRecords / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        historyQuery = sortOrder switch
+        {
+            "date_asc" => historyQuery.OrderBy(request => request.RequestDate),
+            "amount_asc" => historyQuery.OrderBy(request => request.TotalAmount),
+            "amount_desc" => historyQuery.OrderByDescending(request => request.TotalAmount),
+            _ => historyQuery.OrderByDescending(request => request.RequestDate)
+        };
+
+        var requests = await historyQuery
+            .Include(request => request.Orders)
+                .ThenInclude(order => order.Payments)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        ViewBag.BookingId = bookingId;
+        ViewBag.Status = status;
+        ViewBag.DateFrom = dateFrom;
+        ViewBag.DateTo = dateTo;
+        ViewBag.SortOrder = sortOrder;
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalRecords = totalRecords;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.ApprovedTotal = approvedTotal;
+
+        return View(requests);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> SelectFlight(
         int bookingId,
         CancellationToken cancellationToken)
