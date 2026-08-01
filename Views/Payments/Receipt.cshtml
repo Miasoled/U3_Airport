@@ -54,6 +54,18 @@
                         <dt class="col-sm-5">Nuevo vuelo</dt>
                         <dd class="col-sm-7">@changeRequest.NewFlightId</dd>
                     </dl>
+
+                    @if (User.IsInRole("Administrador")
+                        && string.Equals(Model.Status, "Aprobado", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <form asp-action="RetryBookingUpdate" method="post" class="mt-4">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="paymentId" value="@Model.PaymentId" />
+                            <button type="submit" class="btn btn-outline-primary">
+                                Reintentar actualización de la reserva
+                            </button>
+                        </form>
+                    }
                 </div>
             </div>
         </div>

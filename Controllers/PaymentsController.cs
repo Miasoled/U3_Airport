@@ -19,15 +19,18 @@ namespace U3_Examen_Airport.Controllers
         private readonly ApplicationDbContext _context;
         private readonly AirportContext _airportContext;
         private readonly IPayPalService _payPalService;
+        private readonly ILogger<PaymentsController> _logger;
 
         public PaymentsController(
             ApplicationDbContext context,
             AirportContext airportContext,
-            IPayPalService payPalService)
+            IPayPalService payPalService,
+            ILogger<PaymentsController> logger)
         {
             _context = context;
             _airportContext = airportContext;
             _payPalService = payPalService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -320,28 +323,13 @@ namespace U3_Examen_Airport.Controllers
                 }
             }
 
-            try
-            {
-                var booking = await _airportContext.Bookings
-                    .FirstOrDefaultAsync(
-                        b => b.BookingId == changeRequest.BookingId,
-                        cancellationToken);
+            var bookingUpdate = await UpdateBookingFlightAsync(
+                changeRequest,
+                cancellationToken);
 
-                if (booking is null)
-                {
-                    TempData["WarningMessage"] =
-                        "El pago fue aprobado, pero no se encontró la reserva para actualizar el vuelo.";
-                }
-                else
-                {
-                    booking.FlightId = changeRequest.NewFlightId;
-                    await _airportContext.SaveChangesAsync(cancellationToken);
-                }
-            }
-            catch (Exception)
+            if (!bookingUpdate.Succeeded)
             {
-                TempData["WarningMessage"] =
-                    "El pago fue aprobado, pero no fue posible actualizar la reserva. Requiere revisión administrativa.";
+                TempData["WarningMessage"] = bookingUpdate.Message;
             }
 
             return RedirectToAction(nameof(Receipt), new { paymentId = payment.PaymentId });
@@ -447,6 +435,54 @@ namespace U3_Examen_Airport.Controllers
             }
 
             return View(payment);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Administrador")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RetryBookingUpdate(
+            int paymentId,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _context.Payments
+                .AsNoTracking()
+                .Include(item => item.Order)
+                .ThenInclude(order => order!.FlightChangeRequest)
+                .FirstOrDefaultAsync(
+                    item => item.PaymentId == paymentId,
+                    cancellationToken);
+
+            if (payment?.Order?.FlightChangeRequest is null)
+            {
+                return NotFound();
+            }
+
+            if (!string.Equals(
+                    payment.Status,
+                    "Aprobado",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["WarningMessage"] =
+                    "Solo se puede reparar una reserva cuyo pago esté aprobado.";
+                return RedirectToAction(nameof(Receipt), new { paymentId });
+            }
+
+            var bookingUpdate = await UpdateBookingFlightAsync(
+                payment.Order.FlightChangeRequest,
+                cancellationToken);
+
+            if (bookingUpdate.Succeeded)
+            {
+                TempData["SuccessMessage"] = bookingUpdate.AlreadyUpdated
+                    ? "La reserva ya estaba actualizada al nuevo vuelo."
+                    : "La reserva fue actualizada correctamente al nuevo vuelo.";
+            }
+            else
+            {
+                TempData["WarningMessage"] = bookingUpdate.Message;
+            }
+
+            return RedirectToAction(nameof(Receipt), new { paymentId });
         }
 
         // GET: Payments
@@ -607,6 +643,141 @@ namespace U3_Examen_Airport.Controllers
                 && (ownerUserId == userId || User.IsInRole("Administrador"));
         }
 
+        private async Task<BookingUpdateResult> UpdateBookingFlightAsync(
+            FlightChangeRequest flightChangeRequest,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var booking = await _airportContext.Bookings
+                    .FirstOrDefaultAsync(
+                        item => item.BookingId == flightChangeRequest.BookingId,
+                        cancellationToken);
+
+                if (booking is null)
+                {
+                    _logger.LogWarning(
+                        "No se encontró Booking durante la actualización posterior al pago. " +
+                        "BookingId: {BookingId}, OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                        flightChangeRequest.BookingId,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "El pago fue aprobado, pero no se encontró la reserva para actualizar el vuelo.");
+                }
+
+                var newFlightExists = await _airportContext.Flights
+                    .AsNoTracking()
+                    .AnyAsync(
+                        item => item.FlightId == flightChangeRequest.NewFlightId,
+                        cancellationToken);
+
+                if (!newFlightExists)
+                {
+                    _logger.LogWarning(
+                        "El nuevo vuelo no existe durante la actualización de Booking. " +
+                        "BookingId: {BookingId}, OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                        flightChangeRequest.BookingId,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "El pago fue aprobado, pero el nuevo vuelo ya no existe. Requiere revisión administrativa.");
+                }
+
+                if (booking.FlightId == flightChangeRequest.NewFlightId)
+                {
+                    return BookingUpdateResult.Success(alreadyUpdated: true);
+                }
+
+                if (booking.FlightId != flightChangeRequest.OriginalFlightId)
+                {
+                    _logger.LogWarning(
+                        "Booking apunta a un vuelo inesperado y no será sobrescrito. " +
+                        "BookingId: {BookingId}, CurrentFlightId: {CurrentFlightId}, " +
+                        "OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                        booking.BookingId,
+                        booking.FlightId,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "La reserva apunta a un vuelo diferente del original. Requiere revisión administrativa.");
+                }
+
+                var seatOccupied = await _airportContext.Bookings
+                    .AsNoTracking()
+                    .AnyAsync(
+                        item => item.BookingId != booking.BookingId
+                                && item.FlightId == flightChangeRequest.NewFlightId
+                                && item.Seat == booking.Seat,
+                        cancellationToken);
+
+                if (seatOccupied)
+                {
+                    _logger.LogWarning(
+                        "No se actualizó Booking porque el asiento está ocupado en el nuevo vuelo. " +
+                        "BookingId: {BookingId}, Seat: {Seat}, OriginalFlightId: {OriginalFlightId}, " +
+                        "NewFlightId: {NewFlightId}",
+                        booking.BookingId,
+                        booking.Seat,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "El asiento actual ya está ocupado en el nuevo vuelo.");
+                }
+
+                booking.FlightId = flightChangeRequest.NewFlightId;
+                await _airportContext.SaveChangesAsync(cancellationToken);
+
+                var updateConfirmed = await _airportContext.Bookings
+                    .AsNoTracking()
+                    .AnyAsync(
+                        item => item.BookingId == booking.BookingId
+                                && item.FlightId == flightChangeRequest.NewFlightId,
+                        cancellationToken);
+
+                if (!updateConfirmed)
+                {
+                    _logger.LogError(
+                        "No se pudo confirmar la actualización de Booking. " +
+                        "BookingId: {BookingId}, OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                        booking.BookingId,
+                        flightChangeRequest.OriginalFlightId,
+                        flightChangeRequest.NewFlightId);
+
+                    return BookingUpdateResult.Failure(
+                        "La actualización de la reserva no pudo confirmarse. Requiere revisión administrativa.");
+                }
+
+                return BookingUpdateResult.Success(alreadyUpdated: false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "Error completo al actualizar Booking después del pago. " +
+                    "Message: {ExceptionMessage}, InnerException: {InnerException}, " +
+                    "StackTrace: {StackTrace}, BookingId: {BookingId}, " +
+                    "OriginalFlightId: {OriginalFlightId}, NewFlightId: {NewFlightId}",
+                    exception.Message,
+                    exception.InnerException?.ToString(),
+                    exception.StackTrace,
+                    flightChangeRequest.BookingId,
+                    flightChangeRequest.OriginalFlightId,
+                    flightChangeRequest.NewFlightId);
+
+                return BookingUpdateResult.Failure(
+                    "El pago fue aprobado, pero no fue posible actualizar la reserva. Requiere revisión administrativa.");
+            }
+        }
+
         private async Task<Payment> RegisterFailedPaymentAttemptAsync(
             Order order,
             string responseMessage,
@@ -715,5 +886,17 @@ namespace U3_Examen_Airport.Controllers
             value.Length <= maximumLength
                 ? value
                 : value[..maximumLength];
+
+        private sealed record BookingUpdateResult(
+            bool Succeeded,
+            bool AlreadyUpdated,
+            string? Message)
+        {
+            public static BookingUpdateResult Success(bool alreadyUpdated) =>
+                new(true, alreadyUpdated, null);
+
+            public static BookingUpdateResult Failure(string message) =>
+                new(false, false, message);
+        }
     }
 }
