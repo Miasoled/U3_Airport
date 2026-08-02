@@ -498,7 +498,7 @@ public class FlightReprogrammingController : Controller
         }
 
         var originalPrice = booking.Price;
-        var newPrice = originalPrice + 25m;
+        var newPrice = CalculateFlightPrice(newFlight);
         var fareDifference = Math.Max(0m, newPrice - originalPrice);
         const decimal penaltyAmount = 20m;
         var totalAmount = fareDifference + penaltyAmount;
@@ -633,6 +633,7 @@ public class FlightReprogrammingController : Controller
                 b => b.Flight.Departure < exclusiveDateTo);
         }
 
+        //Se cuenta el total de registros para la paginación
         var totalRecords = await bookingsQuery.CountAsync(cancellationToken);
         var totalPages = Math.Max(
             1,
@@ -648,6 +649,7 @@ public class FlightReprogrammingController : Controller
             _ => bookingsQuery.OrderByDescending(b => b.BookingId)
         };
 
+        //Se obtienen los registros de reservas del usuario con la paginación aplicada
         var userBookings = await bookingsQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -816,7 +818,7 @@ public class FlightReprogrammingController : Controller
             return null;
         }
 
-        var newPrice = booking.Price + 25m;
+        var newPrice = CalculateFlightPrice(newFlight);
         var fareDifference = Math.Max(0m, newPrice - booking.Price);
         const decimal penaltyAmount = 20m;
         var totalAmount = fareDifference + penaltyAmount;
@@ -834,5 +836,16 @@ public class FlightReprogrammingController : Controller
             PenaltyAmount = penaltyAmount,
             TotalAmount = totalAmount
         };
+    }
+
+    private static decimal CalculateFlightPrice(Flight flight)
+    {
+        var durationHours = Math.Max(
+            0.5,
+            (flight.Arrival - flight.Departure).TotalHours);
+
+        return decimal.Round(
+            75m + ((decimal)durationHours * 15m),
+            2);
     }
 }
