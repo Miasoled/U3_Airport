@@ -99,16 +99,76 @@ La confirmación del pago se registra primero mediante `ApplicationDbContext`. P
 
 - .NET SDK 10.
 - PostgreSQL con la base de datos Airport proporcionada para el examen.
+- Herramientas de consola de PostgreSQL (`createdb`, `pg_restore` y `psql`).
 - Credenciales de PayPal Sandbox.
 
-## Configuración local
+## Creación e importación de la base de datos
 
-`appsettings.Example.json` contiene un ejemplo de la cadena de conexión. Las credenciales reales no deben incluirse en Git.
+La base de datos se prepara mediante comandos. El respaldo original del dataset Airport debe estar disponible localmente antes de iniciar este procedimiento; no se almacena dentro del repositorio.
 
-Desde la carpeta del proyecto, registra la configuración mediante User Secrets:
+### 1. Crear la base de datos
+
+Desde PowerShell, crea una base vacía llamada `airport`:
+
+```powershell
+createdb -h localhost -p 5432 -U TU_USUARIO airport
+```
+
+PostgreSQL solicitará la contraseña del usuario. Si la base ya existe, no vuelvas a ejecutar este comando.
+
+### 2. Importar el dataset original
+
+Si el respaldo recibido tiene formato personalizado de PostgreSQL (`.backup` o `.dump`), utiliza:
+
+```powershell
+pg_restore -h localhost -p 5432 -U TU_USUARIO -d airport --no-owner --no-privileges "C:\RUTA\airport.backup"
+```
+
+Si el respaldo es un script de texto `.sql`, utiliza en su lugar:
+
+```powershell
+psql -h localhost -p 5432 -U TU_USUARIO -d airport -f "C:\RUTA\airport.sql"
+```
+
+Debe ejecutarse únicamente uno de los dos comandos anteriores, según el formato del archivo recibido.
+
+### 3. Configurar la conexión de la aplicación
+
+Registra la cadena de conexión mediante User Secrets:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:AirportConnection" "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA"
+```
+
+### 4. Crear las tablas de Identity y del Tipo 4
+
+El dataset importado contiene las tablas originales de Airport. Las tablas propias de autenticación, reprogramación, órdenes, pagos e historiales se crean ejecutando las migraciones de `ApplicationDbContext`:
+
+```powershell
+dotnet tool install --global dotnet-ef
+dotnet ef database update --context ApplicationDbContext
+```
+
+Si `dotnet-ef` ya está instalado, omite el primer comando. No generes migraciones para `AirportContext`, porque ese contexto conserva el esquema original mediante Database First.
+
+### 5. Verificar la importación
+
+Puedes comprobar que las tablas y los datos fueron importados con:
+
+```powershell
+psql -h localhost -p 5432 -U TU_USUARIO -d airport -c "SELECT COUNT(*) AS total_vuelos FROM flight;"
+psql -h localhost -p 5432 -U TU_USUARIO -d airport -c "SELECT COUNT(*) AS total_reservas FROM booking;"
+```
+
+Si PowerShell no reconoce `createdb`, `pg_restore` o `psql`, agrega la carpeta `bin` de PostgreSQL al `PATH` o ejecuta los comandos usando su ruta completa, por ejemplo `C:\Program Files\PostgreSQL\17\bin\psql.exe`.
+
+## Configuración local
+
+`appsettings.Example.json` contiene un ejemplo de la cadena de conexión. Las credenciales reales no deben incluirse en Git. Después de registrar la conexión en el paso anterior, configura PayPal mediante User Secrets.
+
+Desde la carpeta del proyecto, ejecuta:
+
+```powershell
 dotnet user-secrets set "PayPal:ClientId" "TU_CLIENT_ID_SANDBOX"
 dotnet user-secrets set "PayPal:ClientSecret" "TU_CLIENT_SECRET_SANDBOX"
 dotnet user-secrets set "PayPal:BaseUrl" "https://api-m.sandbox.paypal.com"
