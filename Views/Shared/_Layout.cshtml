@@ -56,62 +56,56 @@
                             </a>
                         </li>
 
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark"
-                                   asp-area=""
-                                   asp-controller="Reservations"
-                                   asp-action="Index">
-                                    Nueva Reserva
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark"
-                                asp-area=""
-                                asp-controller="FlightReprogramming"
-                                asp-action="Index">
-                                    Reprogramar vuelo
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark"
-                                   asp-area=""
-                                   asp-controller="FlightReprogramming"
-                                   asp-action="History">
-                                    Mi historial
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark"
-                                   asp-area=""
-                                   asp-controller="Administration"
-                                   asp-action="Index">
-                                    Zona administrativa
-                                </a>
-                            </li>
-                        }
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area=""
+                               asp-controller="Reservations"
+                               asp-action="Index">
+                                Nueva Reserva
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area=""
+                               asp-controller="FlightReprogramming"
+                               asp-action="Index">
+                                Reprogramar vuelo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area=""
+                               asp-controller="FlightReprogramming"
+                               asp-action="History">
+                                Mi historial
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark"
+                               asp-area=""
+                               asp-controller="Administration"
+                               asp-action="Index">
+                                Zona administrativa
+                            </a>
+                        </li>
 
-                        @if (User.IsInRole("Administrador"))
-                        {
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-dark"
-                                   href="#"
-                                   id="administrationDropdown"
-                                   role="button"
-                                   data-bs-toggle="dropdown"
-                                   aria-expanded="false">
-                                    Catálogos
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="administrationDropdown">
-                                    <li><a class="dropdown-item" asp-controller="Airlines" asp-action="Index">Aerolíneas</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Airports" asp-action="Index">Aeropuertos</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Bookings" asp-action="Index">Reservas</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Flights" asp-action="Index">Vuelos</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Passengers" asp-action="Index">Pasajeros</a></li>
-                                </ul>
-                            </li>
-                        }
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark"
+                               href="#"
+                               id="administrationDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                Catálogos
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="administrationDropdown">
+                                <li><a class="dropdown-item" asp-controller="Airlines" asp-action="Index">Aerolíneas</a></li>
+                                <li><a class="dropdown-item" asp-controller="Airports" asp-action="Index">Aeropuertos</a></li>
+                                <li><a class="dropdown-item" asp-controller="Bookings" asp-action="Index">Reservas</a></li>
+                                <li><a class="dropdown-item" asp-controller="Flights" asp-action="Index">Vuelos</a></li>
+                                <li><a class="dropdown-item" asp-controller="Passengers" asp-action="Index">Pasajeros</a></li>
+                            </ul>
+                        </li>
 
                     </ul>
 

@@ -28,7 +28,7 @@
                 <div class="alert alert-warning">@searchError</div>
             }
 
-            <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <form method="get" asp-action="Index" class="row g-3 align-items-start">
                 <div class="col-md-4">
                     <label for="origin" class="form-label">Origen</label>
                     <select id="origin" name="origin" class="form-select" required>
@@ -75,6 +75,7 @@
                 </div>
 
                 <div class="col-md-1 d-grid">
+                    <span class="form-label invisible" aria-hidden="true">Acción</span>
                     <button type="submit" class="btn btn-primary">Buscar</button>
                 </div>
             </form>
