@@ -54,9 +54,10 @@ public class ReservationsController : Controller
             DateTimeKind.Utc);
         var endDate = startDate.AddDays(1);
 
+        //Consulta para busqueda de vuelos disponibles
         var flights = await _airportContext.Flights
             .AsNoTracking()
-            .Where(f => f.From == origin.Value
+            .Where(f => f.From == origin.Value          
                         && f.To == destination.Value
                         && f.Departure >= startDate
                         && f.Departure < endDate)
@@ -379,6 +380,7 @@ public class ReservationsController : Controller
         return View(flight);
     }
 
+    //Obtener rutas disponibles 
     private async Task LoadFlightFilterOptionsAsync(CancellationToken cancellationToken)
     {
         var routes = await _airportContext.Flights

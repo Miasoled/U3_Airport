@@ -1,43 +1,111 @@
 # U3 Examen Airport — Tipo 4
 
-Aplicación ASP.NET Core MVC .NET 10 para consultar reservas y gestionar el cambio o reprogramación de vuelos. Usa PostgreSQL, Entity Framework Core, Identity y PayPal Sandbox mediante Orders API v2.
+Aplicación web desarrollada con ASP.NET Core MVC y .NET 10 para consultar vuelos, crear reservas y gestionar la reprogramación de vuelos. Utiliza PostgreSQL, Entity Framework Core, ASP.NET Core Identity y PayPal Sandbox mediante Orders API v2.
 
-## Funcionalidad implementada
+## Funcionalidades principales
 
-- Registro e inicio de sesión con roles `Cliente` y `Administrador`.
-- Consulta segura de reservas asociadas al correo del usuario.
-- Búsqueda manual por reserva y pasaporte.
+### Reservas
+
+- Búsqueda de vuelos por origen, destino y fecha.
+- Creación de reservas asociadas al usuario autenticado.
+- Asociación del usuario con el pasajero mediante su correo electrónico.
+- Asignación y comprobación de disponibilidad de asientos.
+- Cálculo del precio estimado en el servidor.
+- Prevención de reservas duplicadas para un mismo pasajero y vuelo.
+
+### Reprogramación de vuelos
+
+- Consulta de las reservas pertenecientes al usuario.
+- Búsqueda manual mediante número de reserva y pasaporte.
+- Filtros por número de vuelo y rango de fechas.
+- Ordenamiento por fecha de salida, precio o reserva más reciente.
+- Paginación física con `CountAsync()`, `Skip()` y `Take()`.
 - Búsqueda de vuelos alternativos con el mismo origen y destino.
-- Comparación entre el vuelo actual y el nuevo.
-- Cálculo en servidor de diferencia de tarifa, penalización y total.
-- Creación transaccional de solicitud, orden y detalle de orden.
-- Pago con PayPal Sandbox, captura y comprobante.
-- Estados `Pendiente`, `Aprobado`, `Cancelado`, `Rechazado` y `Fallido`.
-- Historial de cambios y transacciones.
-- Historial paginado del cliente.
+- Selección y validación de un nuevo asiento.
+- Comparación entre el vuelo actual y el vuelo alternativo.
+- Cálculo en el servidor del precio original, nuevo precio, diferencia tarifaria, penalización y total.
+- Creación transaccional de la solicitud, la orden y su detalle.
+
+### Pagos
+
+- Integración con PayPal Sandbox.
+- Creación y captura de órdenes mediante PayPal Orders API v2.
+- Registro de pagos e historiales de transacción.
+- Actualización de la reserva únicamente después de un pago aprobado.
+- Generación de comprobantes.
+- Manejo de los estados `Pendiente`, `Aprobado`, `Cancelado`, `Rechazado` y `Fallido`.
+
+Los estados se almacenan actualmente como valores `string`; el proyecto no declara una enumeración C# para representarlos.
+
+### Administración
+
 - Panel administrativo con filtros, métricas y operaciones recientes.
-- CRUD administrativos protegidos por rol.
+- Agrupación y conteo de órdenes por estado.
+- Total y promedio de pagos aprobados.
+- CRUD de aerolíneas, aeropuertos, reservas, vuelos y pasajeros.
+- Acceso restringido al rol `Administrador`.
+
+## Navegación, roles y autorizaciones
+
+El navbar mantiene visibles los módulos principales aunque no exista una sesión iniciada. Esto permite identificar las funciones disponibles y su relación con los roles, pero no concede acceso a operaciones protegidas.
+
+- `Cliente`: puede crear y consultar sus reservas, reprogramar vuelos, pagar, consultar comprobantes y revisar su historial.
+- `Administrador`: puede acceder al panel general y a los CRUD de catálogos.
+
+Las acciones privadas utilizan `[Authorize]` y los módulos administrativos utilizan `[Authorize(Roles = "Administrador")]`. Si un visitante abre un enlace protegido, Identity solicita autenticación o impide el acceso según corresponda.
+
+Los roles se crean al iniciar la aplicación mediante `IdentitySeeder`.
+
+## Consultas LINQ y Entity Framework Core
+
+El proyecto utiliza consultas LINQ para filtrar, proyectar, ordenar, agrupar, validar y paginar información. Entre los operadores empleados se encuentran:
+
+- `Where()`: filtra vuelos, reservas, pagos y órdenes.
+- `Select()`: recupera datos específicos, como rutas y asientos ocupados.
+- `OrderBy()` y `OrderByDescending()`: ordenan vuelos, reservas e historiales.
+- `GroupBy()`: agrupa órdenes por estado para obtener métricas.
+- `Count()` y `CountAsync()`: cuentan registros y permiten calcular páginas.
+- `SumAsync()` y `AverageAsync()`: calculan totales y promedios de pagos.
+- `Any()` y `AnyAsync()`: verifican la existencia de reservas, asientos o transacciones.
+- `Include()` y `ThenInclude()`: cargan relaciones necesarias.
+- `AsNoTracking()`: optimiza consultas de solo lectura.
+- `Skip()` y `Take()`: implementan paginación física.
+
+La lista de reservas del usuario recupera entidades `Booking` con su relación `Flight`. Aunque el proyecto utiliza `Select()` en otras consultas, actualmente no proyecta las reservas hacia un `BookingSummaryViewModel`.
 
 ## Arquitectura de datos
 
-La aplicación utiliza dos contextos sobre la misma base PostgreSQL:
+La aplicación utiliza dos contextos sobre la misma base de datos PostgreSQL:
 
-- `AirportContext`: tablas originales de Airport, generado con Database First.
-- `ApplicationDbContext`: Identity y tablas propias de reprogramación, órdenes, pagos e historiales.
+- `AirportContext`: administra las tablas originales de Airport mediante Database First.
+- `ApplicationDbContext`: administra Identity y las tablas propias de solicitudes de cambio, órdenes, pagos e historiales.
 
-La confirmación de PayPal se guarda primero en `ApplicationDbContext` y después se actualiza `bookings.flight_id` con `AirportContext`. No se simula una transacción distribuida entre ambos contextos.
+La confirmación del pago se registra primero mediante `ApplicationDbContext`. Posteriormente se actualizan `bookings.flight_id` y `bookings.seat` mediante `AirportContext`. No se simula una transacción distribuida entre ambos contextos.
+
+## Flujo principal de reprogramación
+
+1. El cliente inicia sesión y abre **Reprogramar vuelo**.
+2. Selecciona una reserva propia o realiza una búsqueda manual.
+3. Escoge un vuelo alternativo con el mismo origen y destino.
+4. Selecciona un asiento disponible.
+5. Compara el vuelo actual, el nuevo vuelo y los valores calculados.
+6. La aplicación crea la solicitud de cambio y la orden en estado `Pendiente`.
+7. El cliente completa el pago mediante PayPal Sandbox.
+8. PayPal confirma o rechaza la transacción.
+9. Si el pago es aprobado, la aplicación actualiza el vuelo y el asiento de la reserva.
+10. El cliente puede consultar el comprobante y su historial.
 
 ## Requisitos
 
-- .NET SDK 10
-- PostgreSQL con la base Airport proporcionada para el examen
-- Cuenta de desarrollador y credenciales de PayPal Sandbox
+- .NET SDK 10.
+- PostgreSQL con la base de datos Airport proporcionada para el examen.
+- Credenciales de PayPal Sandbox.
 
-## Configuración segura
+## Configuración local
 
-El archivo `appsettings.Example.json` documenta todas las claves necesarias, pero contiene únicamente valores de ejemplo. Las credenciales reales no deben incluirse en Git.
+`appsettings.Example.json` contiene un ejemplo de la cadena de conexión. Las credenciales reales no deben incluirse en Git.
 
-Desde la carpeta del proyecto, configura User Secrets:
+Desde la carpeta del proyecto, registra la configuración mediante User Secrets:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:AirportConnection" "Host=localhost;Port=5432;Database=airport;Username=TU_USUARIO;Password=TU_CONTRASENA"
@@ -54,9 +122,9 @@ Puedes comprobar las claves registradas —sin compartir su salida— con:
 dotnet user-secrets list
 ```
 
-En el panel de PayPal Sandbox, las URL de retorno deben coincidir con las configuradas. Si usas el perfil HTTP, cambia el host y puerto según `Properties/launchSettings.json`.
+Las URL de retorno deben coincidir con el perfil utilizado en `Properties/launchSettings.json`. Si ejecutas el perfil HTTP, ajusta el esquema, host y puerto de las URL de PayPal.
 
-## Ejecución
+## Restauración y ejecución
 
 ```powershell
 dotnet restore
@@ -69,33 +137,18 @@ Perfiles locales predeterminados:
 - `https://localhost:7055`
 - `http://localhost:5240`
 
-## Flujo principal
-
-1. El cliente inicia sesión y abre **Reprogramar vuelo**.
-2. Selecciona una reserva y un boleto.
-3. Busca un vuelo alternativo del mismo origen y destino.
-4. Compara importes y confirma la solicitud.
-5. Selecciona PayPal y completa el pago en Sandbox.
-6. La aplicación captura el pago, registra los historiales y actualiza el vuelo de la reserva.
-7. El cliente consulta el comprobante o su historial.
-
-## Roles
-
-- `Cliente`: reservas propias, reprogramación, pago, comprobante e historial personal.
-- `Administrador`: panel general, acceso a operaciones y CRUD de catálogos.
-
-Los roles se crean al iniciar la aplicación mediante `IdentitySeeder`.
-
 ## Seguridad
 
+- Autenticación y administración de usuarios mediante ASP.NET Core Identity.
 - Acciones privadas protegidas con `[Authorize]`.
-- CRUD sensibles restringidos a `Administrador`.
+- CRUD sensibles restringidos al rol `Administrador`.
 - Validación de propiedad de órdenes, pagos y reservas.
-- Formularios POST protegidos con antiforgery token.
-- Totales recalculados o leídos desde la orden del servidor.
-- El secreto de PayPal se usa únicamente en el servicio del servidor.
-- `appsettings.json`, archivos locales y secretos están excluidos mediante `.gitignore`.
+- Formularios POST protegidos mediante antiforgery token.
+- Validación de disponibilidad del asiento antes de continuar y antes de actualizar la reserva.
+- Totales calculados o recuperados desde el servidor.
+- Credenciales de PayPal utilizadas únicamente por el servicio del servidor.
+- Secretos y archivos locales excluidos mediante `.gitignore`.
 
-## Nota sobre la base Airport
+## Nota sobre la base de datos Airport
 
-`AirportContext` conserva el esquema original autorizado para el examen. No debe reemplazarse por migraciones de las tablas Airport. El proyecto mantiene por separado las tablas propias requeridas para el flujo Tipo 4.
+`AirportContext` conserva el esquema original autorizado para el examen. Las tablas originales de Airport no deben reemplazarse con migraciones generadas desde la aplicación. Las tablas requeridas para el flujo de reprogramación se mantienen separadas dentro de `ApplicationDbContext`.
